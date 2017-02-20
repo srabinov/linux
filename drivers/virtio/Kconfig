@@ -48,6 +48,15 @@ config VIRTIO_BALLOON
 
 	 If unsure, say M.
 
+config VIRTIO_TEST_PCI
+	tristate "Virtio test pci driver"
+	depends on VIRTIO
+	---help---
+	 Test virtio pci driver
+
+	 If unsure, say M.
+
+
 config VIRTIO_INPUT
 	tristate "Virtio input driver"
 	depends on VIRTIO
