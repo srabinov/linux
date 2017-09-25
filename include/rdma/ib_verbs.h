@@ -50,6 +50,7 @@
 #include <linux/workqueue.h>
 #include <linux/socket.h>
 #include <linux/irq_poll.h>
+#include <linux/rbtree.h>
 #include <uapi/linux/if_ether.h>
 #include <net/ipv6.h>
 #include <net/ip.h>
@@ -1463,6 +1464,178 @@ struct ib_udata {
 	size_t       inlen;
 	size_t       outlen;
 };
+
+struct ib_ctx_uobj {
+	struct rb_root		root;
+	spinlock_t		lock;
+};
+
+struct ib_ctx_uobj_node {
+	struct rb_node		node;
+	struct ib_ucontext     *key;
+	struct ib_uobject      *uobj;
+};
+
+static inline void
+ib_ctx_uobj_init(struct ib_ctx_uobj *ctx_uobj)
+{
+	ctx_uobj->root = RB_ROOT;
+	spin_lock_init(&ctx_uobj->lock);
+}
+
+static inline struct ib_uobject *
+_ib_ctx_uobj_find(struct ib_ctx_uobj *ctx_uobj, struct ib_ucontext *key,
+		  struct ib_ctx_uobj_node **ret_node)
+{
+	struct rb_node		*node = ctx_uobj->root.rb_node;
+	struct ib_uobject	*ret = NULL;
+	struct ib_ctx_uobj_node	*uobj_node;
+
+	while (node) {
+		uobj_node = rb_entry(node, struct ib_ctx_uobj_node, node);
+
+		if (uobj_node->key > key)
+			node = node->rb_left;
+		else if (uobj_node->key < key)
+			node = node->rb_right;
+		else {
+			ret = uobj_node->uobj;
+			if (ret_node)
+				*ret_node = uobj_node;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static inline struct ib_uobject *
+ib_ctx_uobj_find(struct ib_ctx_uobj *ctx_uobj, struct ib_ucontext *key)
+{
+	struct ib_uobject      *ret;
+
+	spin_lock(&ctx_uobj->lock);
+
+	ret = _ib_ctx_uobj_find(ctx_uobj, key, NULL);
+
+	spin_unlock(&ctx_uobj->lock);
+
+	return ret;
+}
+
+static inline int
+_ib_ctx_uobj_add(struct ib_ctx_uobj *ctx_uobj, struct ib_ucontext *key,
+		 struct ib_uobject *uobj, struct ib_ctx_uobj_node *new_node)
+{
+	struct rb_node		**link, *parent;
+	struct ib_ctx_uobj_node	*node;
+
+	if (_ib_ctx_uobj_find(ctx_uobj, key, NULL))
+		return -EEXIST;
+
+	link = &ctx_uobj->root.rb_node;
+
+	new_node->key = key;
+	new_node->uobj = uobj;
+
+	/* Go to the bottom of the tree */
+	while (*link) {
+		parent = *link;
+		node = rb_entry(parent, struct ib_ctx_uobj_node, node);
+		if (node->key > key)
+			link = &(*link)->rb_left;
+		else
+			link = &(*link)->rb_right;
+	}
+
+	/* Put the new node there */
+	rb_link_node(&new_node->node, parent, link);
+	rb_insert_color(&new_node->node, &ctx_uobj->root);
+
+	return 0;
+}
+
+static inline int
+ib_ctx_uobj_add(struct ib_ctx_uobj *ctx_uobj, struct ib_ucontext *key,
+		struct ib_uobject *uobj)
+{
+	struct ib_ctx_uobj_node	       *new_node;
+	int				ret;
+
+	new_node = kzalloc(sizeof(*new_node), GFP_KERNEL);
+	if (!new_node)
+		return -ENOMEM;
+
+	spin_lock(&ctx_uobj->lock);
+
+	ret = _ib_ctx_uobj_add(ctx_uobj, key, uobj, new_node);
+
+	spin_unlock(&ctx_uobj->lock);
+
+	if (ret)
+		kfree(new_node);
+
+	return ret;
+}
+
+static inline void
+ib_ctx_uobj_rem(struct ib_ctx_uobj *ctx_uobj, struct ib_ucontext *key)
+{
+	struct ib_ctx_uobj_node *uobj_node;
+
+	spin_lock(&ctx_uobj->lock);
+
+	if (!_ib_ctx_uobj_find(ctx_uobj, key, &uobj_node))
+		goto not_found;
+
+	rb_erase(&uobj_node->node, &ctx_uobj->root);
+	kfree(uobj_node);
+
+not_found:
+	spin_unlock(&ctx_uobj->lock);
+}
+
+static inline bool
+_ib_ctx_uobj_empty(struct ib_ctx_uobj *ctx_uobj)
+{
+	return RB_EMPTY_ROOT(&ctx_uobj->root);
+}
+
+static inline struct ib_uobject *
+ib_ctx_uobj_first(struct ib_ctx_uobj *ctx_uobj)
+{
+	struct ib_ctx_uobj_node	       *uobj_node;
+	struct ib_uobject	       *ret = NULL;
+
+	spin_lock(&ctx_uobj->lock);
+
+	if (_ib_ctx_uobj_empty(ctx_uobj))
+		goto err_empty;
+
+	uobj_node = rb_entry(ctx_uobj->root.rb_node,
+			     struct ib_ctx_uobj_node,
+			     node);
+
+	ret = uobj_node->uobj;
+
+err_empty:
+	spin_unlock(&ctx_uobj->lock);
+
+	return ret;
+}
+
+static inline void
+ib_ctx_uobj_deinit(struct ib_ctx_uobj *ctx_uobj)
+{
+	bool empty;
+
+	spin_lock(&ctx_uobj->lock);
+	empty = _ib_ctx_uobj_empty(ctx_uobj);
+	spin_unlock(&ctx_uobj->lock);
+
+	WARN_ONCE(!empty, "rbtree not empty! ctx %p\n", ctx_uobj);
+
+}
 
 struct ib_pd {
 	u32			local_dma_lkey;
