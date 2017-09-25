@@ -34,6 +34,7 @@
 #include <linux/anon_inodes.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/uverbs_types.h>
+#include <rdma/uverbs_std_types.h>
 #include <linux/rcupdate.h>
 #include "uverbs.h"
 #include "core_priv.h"
@@ -95,6 +96,7 @@ static struct ib_uobject *alloc_uobj(struct ib_ucontext *context,
 	uobj->context = context;
 	uobj->type = type;
 	atomic_set(&uobj->usecnt, 0);
+	atomic_set(&uobj->obj_usecnt, 0);
 	kref_init(&uobj->ref);
 
 	return uobj;
@@ -303,7 +305,22 @@ static int __must_check remove_commit_idr_uobject(struct ib_uobject *uobj,
 	const struct uverbs_obj_idr_type *idr_type =
 		container_of(uobj->type, struct uverbs_obj_idr_type,
 			     type);
-	int ret = idr_type->destroy_object(uobj, why);
+	int usecnt = atomic_read(&uobj->obj_usecnt);
+	int ret;
+
+	/*
+	 * Make sure the uobj 'object' is not used any more within current
+	 * ib context.
+	 *
+	 * We can only fail gracefully if the user requested to destroy the
+	 * object. In the rest of the cases, just remove whatever you can.
+	 */
+	if (why == RDMA_REMOVE_DESTROY && usecnt)
+		return -EBUSY;
+
+	WARN_ONCE(usecnt, "free uobj with use count %d!\n", usecnt);
+
+	ret = idr_type->destroy_object(uobj, why);
 
 	/*
 	 * We can only fail gracefully if the user requested to destroy the
