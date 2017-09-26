@@ -479,10 +479,11 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	struct usnic_vnic_res_spec res_spec;
 	struct usnic_ib_create_qp_cmd cmd;
 	struct usnic_transport_spec trans_spec;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->uobject);
 
 	usnic_dbg("\n");
 
-	ucontext = to_uucontext(pd->uobject->context);
+	ucontext = to_uucontext(uobj->context);
 	us_ibdev = to_usdev(pd->device);
 
 	if (init_attr->create_flags)
@@ -646,10 +647,11 @@ err_free:
 int usnic_ib_dereg_mr(struct ib_mr *ibmr)
 {
 	struct usnic_ib_mr *mr = to_umr(ibmr);
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&ibmr->pd->uobject);
 
 	usnic_dbg("va 0x%lx length 0x%zx\n", mr->umem->va, mr->umem->length);
 
-	usnic_uiom_reg_release(mr->umem, ibmr->pd->uobject->context->closing);
+	usnic_uiom_reg_release(mr->umem, uobj->context->closing);
 	kfree(mr);
 	return 0;
 }

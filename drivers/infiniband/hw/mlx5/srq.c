@@ -85,6 +85,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 	int ncont;
 	u32 offset;
 	u32 uidx = MLX5_IB_DEFAULT_UIDX;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->uobject);
 
 	ucmdlen = min(udata->inlen, sizeof(ucmd));
 
@@ -102,7 +103,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		return -EINVAL;
 
 	if (in->type == IB_SRQT_XRC) {
-		err = get_srq_user_index(to_mucontext(pd->uobject->context),
+		err = get_srq_user_index(to_mucontext(uobj->context),
 					 &ucmd, udata->inlen, &uidx);
 		if (err)
 			return err;
@@ -110,7 +111,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 
 	srq->wq_sig = !!(ucmd.flags & MLX5_SRQ_FLAG_SIGNATURE);
 
-	srq->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr, buf_size,
+	srq->umem = ib_umem_get(uobj->context, ucmd.buf_addr, buf_size,
 				0, 0);
 	if (IS_ERR(srq->umem)) {
 		mlx5_ib_dbg(dev, "failed umem get, size %d\n", buf_size);
@@ -135,7 +136,7 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 
 	mlx5_ib_populate_pas(dev, srq->umem, page_shift, in->pas, 0);
 
-	err = mlx5_ib_db_map_user(to_mucontext(pd->uobject->context),
+	err = mlx5_ib_db_map_user(to_mucontext(uobj->context),
 				  ucmd.db_addr, &srq->db);
 	if (err) {
 		mlx5_ib_dbg(dev, "map doorbell failed\n");
@@ -223,7 +224,9 @@ err_db:
 
 static void destroy_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq)
 {
-	mlx5_ib_db_unmap_user(to_mucontext(pd->uobject->context), &srq->db);
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->uobject);
+
+	mlx5_ib_db_unmap_user(to_mucontext(uobj->context), &srq->db);
 	ib_umem_release(srq->umem);
 }
 
@@ -245,6 +248,8 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	int buf_size;
 	int err;
 	struct mlx5_srq_attr in = {0};
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->uobject);
+
 	__u32 max_srq_wqes = 1 << MLX5_CAP_GEN(dev->mdev, log_max_srq_sz);
 
 	/* Sanity check SRQ size before proceeding */
@@ -277,14 +282,14 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 		    srq->msrq.max_avail_gather);
 	in.type = init_attr->srq_type;
 
-	if (pd->uobject)
+	if (uobj)
 		err = create_srq_user(pd, srq, &in, udata, buf_size);
 	else
 		err = create_srq_kernel(dev, srq, &in, buf_size);
 
 	if (err) {
 		mlx5_ib_warn(dev, "create srq %s failed, err %d\n",
-			     pd->uobject ? "user" : "kernel", err);
+			     uobj ? "user" : "kernel", err);
 		goto err_srq;
 	}
 
@@ -314,7 +319,7 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	srq->msrq.event = mlx5_ib_srq_event;
 	srq->ibsrq.ext.xrc.srq_num = srq->msrq.srqn;
 
-	if (pd->uobject)
+	if (uobj)
 		if (ib_copy_to_udata(udata, &srq->msrq.srqn, sizeof(__u32))) {
 			mlx5_ib_dbg(dev, "copy to user failed\n");
 			err = -EFAULT;
@@ -329,7 +334,7 @@ err_core:
 	mlx5_core_destroy_srq(dev->mdev, &srq->msrq);
 
 err_usr_kern_srq:
-	if (pd->uobject)
+	if (uobj)
 		destroy_srq_user(pd, srq);
 	else
 		destroy_srq_kernel(dev, srq);

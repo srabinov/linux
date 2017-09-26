@@ -170,8 +170,9 @@ int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
 	int			num_buf;
 	void			*vaddr;
 	int err;
+	struct ib_uobject	*uobj = ib_ctx_uobj_first(&pd->ibpd.uobject);
 
-	umem = ib_umem_get(pd->ibpd.uobject->context, start, length, access, 0);
+	umem = ib_umem_get(uobj->context, start, length, access, 0);
 	if (IS_ERR(umem)) {
 		pr_warn("err %d from rxe_umem_get\n",
 			(int)PTR_ERR(umem));

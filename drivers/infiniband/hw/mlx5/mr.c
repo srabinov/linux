@@ -830,8 +830,9 @@ static int mr_umem_get(struct ib_pd *pd, u64 start, u64 length,
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	int err;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->uobject);
 
-	*umem = ib_umem_get(pd->uobject->context, start, length,
+	*umem = ib_umem_get(uobj->context, start, length,
 			    access_flags, 0);
 	err = PTR_ERR_OR_ZERO(*umem);
 	if (err < 0) {
@@ -993,6 +994,7 @@ int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 	size_t pages_to_map = 0;
 	size_t pages_iter = 0;
 	gfp_t gfp;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&mr->ibmr.pd->uobject);
 
 	/* UMR copies MTTs in units of MLX5_UMR_MTT_ALIGNMENT bytes,
 	 * so we need to align the offset and length accordingly
@@ -1019,7 +1021,7 @@ int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 	}
 
 	if (!xlt) {
-		uctx = to_mucontext(mr->ibmr.pd->uobject->context);
+		uctx = to_mucontext(uobj->context);
 		mlx5_ib_warn(dev, "Using XLT emergency buffer\n");
 		size = PAGE_SIZE;
 		xlt = (void *)uctx->upd_xlt_page;

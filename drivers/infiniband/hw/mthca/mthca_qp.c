@@ -950,8 +950,9 @@ static int mthca_max_data_size(struct mthca_dev *dev, struct mthca_qp *qp, int d
 
 static inline int mthca_max_inline_data(struct mthca_pd *pd, int max_data_size)
 {
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->ibpd.uobject);
 	/* We don't support inline data for kernel QPs (yet). */
-	return pd->ibpd.uobject ? max_data_size - MTHCA_INLINE_HEADER_SIZE : 0;
+	return uobj ? max_data_size - MTHCA_INLINE_HEADER_SIZE : 0;
 }
 
 static void mthca_adjust_qp_caps(struct mthca_dev *dev,
@@ -985,6 +986,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 {
 	int size;
 	int err = -ENOMEM;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->ibpd.uobject);
 
 	size = sizeof (struct mthca_next_seg) +
 		qp->rq.max_gs * sizeof (struct mthca_data_seg);
@@ -1048,7 +1050,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 	 * allocate anything.  All we need is to calculate the WQE
 	 * sizes and the send_wqe_offset, so we're done now.
 	 */
-	if (pd->ibpd.uobject)
+	if (uobj)
 		return 0;
 
 	size = PAGE_ALIGN(qp->send_wqe_offset +
@@ -1160,6 +1162,7 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 	int ret;
 	int i;
 	struct mthca_next_seg *next;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->ibpd.uobject);
 
 	qp->refcount = 1;
 	init_waitqueue_head(&qp->wait);
@@ -1191,7 +1194,7 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 	 * will be allocated and buffers will be initialized in
 	 * userspace.
 	 */
-	if (pd->ibpd.uobject)
+	if (uobj)
 		return 0;
 
 	ret = mthca_alloc_memfree(dev, qp);

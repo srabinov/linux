@@ -645,6 +645,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	enum mlx4_ib_qp_type qp_type = (enum mlx4_ib_qp_type) init_attr->qp_type;
 	struct mlx4_ib_cq *mcq;
 	unsigned long flags;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->uobject);
 
 	/* When tunneling special qps, we use a plain UD qp */
 	if (sqpn) {
@@ -719,11 +720,12 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
 		qp->sq_signal_bits = cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE);
 
-	err = set_rq_size(dev, &init_attr->cap, !!pd->uobject, qp_has_rq(init_attr), qp);
+	err = set_rq_size(dev, &init_attr->cap, !!uobj, qp_has_rq(init_attr),
+			  qp);
 	if (err)
 		goto err;
 
-	if (pd->uobject) {
+	if (uobj) {
 		struct mlx4_ib_create_qp ucmd;
 
 		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
@@ -737,7 +739,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		if (err)
 			goto err;
 
-		qp->umem = ib_umem_get(pd->uobject->context, ucmd.buf_addr,
+		qp->umem = ib_umem_get(uobj->context, ucmd.buf_addr,
 				       qp->buf_size, 0, 0);
 		if (IS_ERR(qp->umem)) {
 			err = PTR_ERR(qp->umem);
@@ -754,7 +756,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			goto err_mtt;
 
 		if (qp_has_rq(init_attr)) {
-			err = mlx4_ib_db_map_user(to_mucontext(pd->uobject->context),
+			err = mlx4_ib_db_map_user(to_mucontext(uobj->context),
 						  ucmd.db_addr, &qp->db);
 			if (err)
 				goto err_mtt;
@@ -907,9 +909,10 @@ err_proxy:
 	if (qp->mlx4_ib_qp_type == MLX4_IB_QPT_PROXY_GSI)
 		free_proxy_bufs(pd->device, qp);
 err_wrid:
-	if (pd->uobject) {
+	if (uobj) {
 		if (qp_has_rq(init_attr))
-			mlx4_ib_db_unmap_user(to_mucontext(pd->uobject->context), &qp->db);
+			mlx4_ib_db_unmap_user(to_mucontext(uobj->context),
+					      &qp->db);
 	} else {
 		kvfree(qp->sq.wrid);
 		kvfree(qp->rq.wrid);
@@ -919,13 +922,13 @@ err_mtt:
 	mlx4_mtt_cleanup(dev->dev, &qp->mtt);
 
 err_buf:
-	if (pd->uobject)
+	if (uobj)
 		ib_umem_release(qp->umem);
 	else
 		mlx4_buf_free(dev->dev, qp->buf_size, &qp->buf);
 
 err_db:
-	if (!pd->uobject && qp_has_rq(init_attr))
+	if (!uobj && qp_has_rq(init_attr))
 		mlx4_db_free(dev->dev, &qp->db);
 
 err:
@@ -1268,6 +1271,7 @@ static int _mlx4_ib_destroy_qp(struct ib_qp *qp)
 	struct mlx4_ib_dev *dev = to_mdev(qp->device);
 	struct mlx4_ib_qp *mqp = to_mqp(qp);
 	struct mlx4_ib_pd *pd;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&qp->pd->uobject);
 
 	if (is_qp0(dev, mqp))
 		mlx4_CLOSE_PORT(dev->dev, mqp->port);
@@ -1283,7 +1287,7 @@ static int _mlx4_ib_destroy_qp(struct ib_qp *qp)
 		mlx4_ib_free_qp_counter(dev, mqp);
 
 	pd = get_pd(mqp);
-	destroy_qp_common(dev, mqp, !!pd->ibpd.uobject);
+	destroy_qp_common(dev, mqp, !!uobj);
 
 	if (is_sqp(dev, mqp))
 		kfree(to_msqp(mqp));

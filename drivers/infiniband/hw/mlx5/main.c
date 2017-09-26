@@ -2995,7 +2995,6 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 		goto error0;
 	}
 	devr->p0->device  = &dev->ib_dev;
-	devr->p0->uobject = NULL;
 	atomic_set(&devr->p0->usecnt, 0);
 
 	devr->c0 = mlx5_ib_create_cq(&dev->ib_dev, &cq_attr, NULL, NULL);

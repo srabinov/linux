@@ -564,6 +564,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	struct iwch_mr *mhp;
 	struct iwch_reg_user_mr_resp uresp;
 	struct scatterlist *sg;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->uobject);
 	pr_debug("%s ib_pd %p\n", __func__, pd);
 
 	php = to_iwch_pd(pd);
@@ -573,8 +574,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		return ERR_PTR(-ENOMEM);
 
 	mhp->rhp = rhp;
-
-	mhp->umem = ib_umem_get(pd->uobject->context, start, length, acc, 0);
+	mhp->umem = ib_umem_get(uobj->context, start, length, acc, 0);
 	if (IS_ERR(mhp->umem)) {
 		err = PTR_ERR(mhp->umem);
 		kfree(mhp);
@@ -832,6 +832,7 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 	struct iwch_create_qp_resp uresp;
 	int wqsize, sqsize, rqsize;
 	struct iwch_ucontext *ucontext;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->uobject);
 
 	pr_debug("%s ib_pd %p\n", __func__, pd);
 	if (attrs->qp_type != IB_QPT_RC)
@@ -870,7 +871,7 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 	 * Kernel users need more wq space for fastreg WRs which can take
 	 * 2 WR fragments.
 	 */
-	ucontext = pd->uobject ? to_iwch_ucontext(pd->uobject->context) : NULL;
+	ucontext = uobj ? to_iwch_ucontext(uobj->context) : NULL;
 	if (!ucontext && wqsize < (rqsize + (2 * sqsize)))
 		wqsize = roundup_pow_of_two(rqsize +
 				roundup_pow_of_two(attrs->cap.max_send_wr * 2));

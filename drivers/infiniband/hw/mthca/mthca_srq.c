@@ -97,15 +97,17 @@ static void mthca_tavor_init_srq_context(struct mthca_dev *dev,
 					 struct mthca_srq *srq,
 					 struct mthca_tavor_srq_context *context)
 {
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->ibpd.uobject);
+
 	memset(context, 0, sizeof *context);
 
 	context->wqe_base_ds = cpu_to_be64(1 << (srq->wqe_shift - 4));
 	context->state_pd    = cpu_to_be32(pd->pd_num);
 	context->lkey        = cpu_to_be32(srq->mr.ibmr.lkey);
 
-	if (pd->ibpd.uobject)
+	if (uobj)
 		context->uar =
-			cpu_to_be32(to_mucontext(pd->ibpd.uobject->context)->uar.index);
+			cpu_to_be32(to_mucontext(uobj->context)->uar.index);
 	else
 		context->uar = cpu_to_be32(dev->driver_uar.index);
 }
@@ -116,6 +118,7 @@ static void mthca_arbel_init_srq_context(struct mthca_dev *dev,
 					 struct mthca_arbel_srq_context *context)
 {
 	int logsize, max;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->ibpd.uobject);
 
 	memset(context, 0, sizeof *context);
 
@@ -129,9 +132,9 @@ static void mthca_arbel_init_srq_context(struct mthca_dev *dev,
 	context->lkey = cpu_to_be32(srq->mr.ibmr.lkey);
 	context->db_index = cpu_to_be32(srq->db_index);
 	context->logstride_usrpage = cpu_to_be32((srq->wqe_shift - 4) << 29);
-	if (pd->ibpd.uobject)
+	if (uobj)
 		context->logstride_usrpage |=
-			cpu_to_be32(to_mucontext(pd->ibpd.uobject->context)->uar.index);
+			cpu_to_be32(to_mucontext(uobj->context)->uar.index);
 	else
 		context->logstride_usrpage |= cpu_to_be32(dev->driver_uar.index);
 	context->eq_pd = cpu_to_be32(MTHCA_EQ_ASYNC << 24 | pd->pd_num);
@@ -151,8 +154,9 @@ static int mthca_alloc_srq_buf(struct mthca_dev *dev, struct mthca_pd *pd,
 	void *wqe;
 	int err;
 	int i;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->ibpd.uobject);
 
-	if (pd->ibpd.uobject)
+	if (uobj)
 		return 0;
 
 	srq->wrid = kmalloc(srq->max * sizeof (u64), GFP_KERNEL);
@@ -202,6 +206,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	struct mthca_mailbox *mailbox;
 	int ds;
 	int err;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->ibpd.uobject);
 
 	/* Sanity check SRQ size before proceeding */
 	if (attr->max_wr  > dev->limits.max_srq_wqes ||
@@ -235,7 +240,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 		if (err)
 			goto err_out;
 
-		if (!pd->ibpd.uobject) {
+		if (!uobj) {
 			srq->db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_SRQ,
 						       srq->srqn, &srq->db);
 			if (srq->db_index < 0) {
@@ -297,14 +302,14 @@ err_out_free_srq:
 		mthca_warn(dev, "HW2SW_SRQ failed (%d)\n", err);
 
 err_out_free_buf:
-	if (!pd->ibpd.uobject)
+	if (!uobj)
 		mthca_free_srq_buf(dev, srq);
 
 err_out_mailbox:
 	mthca_free_mailbox(dev, mailbox);
 
 err_out_db:
-	if (!pd->ibpd.uobject && mthca_is_memfree(dev))
+	if (!uobj && mthca_is_memfree(dev))
 		mthca_free_db(dev, MTHCA_DB_TYPE_SRQ, srq->db_index);
 
 err_out_icm:

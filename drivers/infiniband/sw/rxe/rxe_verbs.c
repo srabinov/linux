@@ -449,7 +449,8 @@ static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
 	struct rxe_srq *srq;
-	struct ib_ucontext *context = udata ? ibpd->uobject->context : NULL;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&ibpd->uobject);
+	struct ib_ucontext *context = udata ? uobj->context : NULL;
 
 	err = rxe_srq_chk_attr(rxe, NULL, &init->attr, IB_SRQ_INIT_MASK);
 	if (err)

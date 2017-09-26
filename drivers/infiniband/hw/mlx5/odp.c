@@ -115,7 +115,8 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 			   size_t nentries, struct mlx5_ib_mr *mr, int flags)
 {
 	struct ib_pd *pd = mr->ibmr.pd;
-	struct ib_ucontext *ctx = pd->uobject->context;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->uobject);
+	struct ib_ucontext *ctx = uobj->context;
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct ib_umem_odp *odp;
 	unsigned long va;
@@ -365,7 +366,8 @@ fail:
 static struct ib_umem_odp *implicit_mr_get_data(struct mlx5_ib_mr *mr,
 						u64 io_virt, size_t bcnt)
 {
-	struct ib_ucontext *ctx = mr->ibmr.pd->uobject->context;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&mr->ibmr.pd->uobject);
+	struct ib_ucontext *ctx = uobj->context;
 	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.pd->device);
 	struct ib_umem_odp *odp, *result = NULL;
 	u64 addr = io_virt & MLX5_IMR_MTT_MASK;
@@ -438,7 +440,8 @@ next_mr:
 struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 					     int access_flags)
 {
-	struct ib_ucontext *ctx = pd->ibpd.uobject->context;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->ibpd.uobject);
+	struct ib_ucontext *ctx = uobj->context;
 	struct mlx5_ib_mr *imr;
 	struct ib_umem *umem;
 
@@ -483,7 +486,8 @@ static int mr_leaf_free(struct ib_umem *umem, u64 start,
 
 void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 {
-	struct ib_ucontext *ctx = imr->ibmr.pd->uobject->context;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&imr->ibmr.pd->uobject);
+	struct ib_ucontext *ctx = uobj->context;
 
 	down_read(&ctx->umem_rwsem);
 	rbt_ib_umem_for_each_in_range(&ctx->umem_tree, 0, ULLONG_MAX,

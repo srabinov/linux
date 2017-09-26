@@ -140,6 +140,7 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	int shift;
 	int err;
 	int n;
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->uobject);
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
@@ -147,7 +148,7 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	/* Force registering the memory as writable. */
 	/* Used for memory re-registeration. HCA protects the access */
-	mr->umem = ib_umem_get(pd->uobject->context, start, length,
+	mr->umem = ib_umem_get(uobj->context, start, length,
 			       access_flags | IB_ACCESS_LOCAL_WRITE, 0);
 	if (IS_ERR(mr->umem)) {
 		err = PTR_ERR(mr->umem);
