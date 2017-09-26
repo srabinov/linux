@@ -70,6 +70,17 @@ static inline struct ib_uobject *__uobj_get(const struct uverbs_obj_type *type,
 	(struct ib_##_type *)(IS_ERR(uobj) ? NULL : uobj->object);	\
 })
 
+#define uobj_get_obj_read_return(_type, _id, _ucontext, _uobj)		\
+({									\
+	struct ib_uobject **ret = _uobj;				\
+	struct ib_uobject *uobj =					\
+		__uobj_get(&uobj_get_type(_type),			\
+			   false, _ucontext, _id);			\
+	if (ret && !IS_ERR(uobj))					\
+		*ret = uobj;						\
+	(struct ib_##_type *)(IS_ERR(uobj) ? NULL : uobj->object);	\
+})
+
 #define uobj_get_write(_type, _id, _ucontext)				\
 	 __uobj_get(&(_type), true, _ucontext, _id)
 
@@ -78,7 +89,13 @@ static inline void uobj_put_read(struct ib_uobject *uobj)
 	rdma_lookup_put_uobject(uobj, false);
 }
 
-#define uobj_put_obj_read(_obj)					\
+#define uobj_put_obj_read_first(_obj)					\
+({									\
+	struct ib_uobject *uobj = ib_ctx_uobj_first(&_obj->uobject);	\
+	uobj_put_read(uobj);						\
+})
+
+#define uobj_put_obj_read(_obj)                                        \
 	uobj_put_read((_obj)->uobject)
 
 static inline void uobj_put_write(struct ib_uobject *uobj)
