@@ -1650,6 +1650,11 @@ struct ib_pd {
 	 * Implementation details of the RDMA core, don't use in drivers:
 	 */
 	struct ib_mr	       *__internal_mr;
+
+	/* shared pd support*/
+	u32			handle;
+	u64			key;
+	struct kref		ref; /* ufile using this shared pd */
 };
 
 struct ib_xrcd {
@@ -2190,6 +2195,10 @@ struct ib_device {
 	struct ib_port_pkey_list     *port_pkey_list;
 
 	struct iw_cm_verbs	     *iwcm;
+
+	/* shared objects support */
+	spinlock_t		      shobj_lock;
+	struct idr		      pd_idr;
 
 	/**
 	 * alloc_hw_stats - Allocate a struct rdma_hw_stats and fill in the

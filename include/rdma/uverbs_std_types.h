@@ -127,5 +127,8 @@ static inline struct ib_uobject *__uobj_alloc(const struct uverbs_obj_type *type
 #define uobj_alloc(_type, ucontext)	\
 	__uobj_alloc(&(_type), ucontext)
 
+/* shared objects free functions */
+void uverbs_release_pd(struct kref *kref);
+
 #endif
 

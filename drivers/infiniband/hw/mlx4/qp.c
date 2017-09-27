@@ -635,7 +635,8 @@ static void mlx4_ib_free_qp_counter(struct mlx4_ib_dev *dev,
 static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			    struct ib_qp_init_attr *init_attr,
 			    struct ib_udata *udata, int sqpn,
-			    struct mlx4_ib_qp **caller_qp)
+			    struct mlx4_ib_qp **caller_qp,
+			    struct ib_ucontext *context)
 {
 	int qpn;
 	int err;
@@ -645,7 +646,7 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 	enum mlx4_ib_qp_type qp_type = (enum mlx4_ib_qp_type) init_attr->qp_type;
 	struct mlx4_ib_cq *mcq;
 	unsigned long flags;
-	struct ib_uobject *uobj = ib_ctx_uobj_first(&pd->uobject);
+	struct ib_uobject *uobj = ib_ctx_uobj_find(&pd->uobject, context);
 
 	/* When tunneling special qps, we use a plain UD qp */
 	if (sqpn) {
@@ -1124,7 +1125,8 @@ static u32 get_sqp_num(struct mlx4_ib_dev *dev, struct ib_qp_init_attr *attr)
 
 static struct ib_qp *_mlx4_ib_create_qp(struct ib_pd *pd,
 					struct ib_qp_init_attr *init_attr,
-					struct ib_udata *udata)
+					struct ib_udata *udata,
+					struct ib_ucontext *context)
 {
 	struct mlx4_ib_qp *qp = NULL;
 	int err;
@@ -1186,7 +1188,7 @@ static struct ib_qp *_mlx4_ib_create_qp(struct ib_pd *pd,
 	case IB_QPT_UD:
 	{
 		err = create_qp_common(to_mdev(pd->device), pd, init_attr,
-				       udata, 0, &qp);
+				       udata, 0, &qp, context);
 		if (err) {
 			kfree(qp);
 			return ERR_PTR(err);
@@ -1215,7 +1217,7 @@ static struct ib_qp *_mlx4_ib_create_qp(struct ib_pd *pd,
 		}
 
 		err = create_qp_common(to_mdev(pd->device), pd, init_attr, udata,
-				       sqpn, &qp);
+				       sqpn, &qp, context);
 		if (err)
 			return ERR_PTR(err);
 
@@ -1241,7 +1243,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 	struct ib_qp *ibqp;
 	struct mlx4_ib_dev *dev = to_mdev(device);
 
-	ibqp = _mlx4_ib_create_qp(pd, init_attr, udata);
+	ibqp = _mlx4_ib_create_qp(pd, init_attr, udata, context);
 
 	if (!IS_ERR(ibqp) &&
 	    (init_attr->qp_type == IB_QPT_GSI) &&

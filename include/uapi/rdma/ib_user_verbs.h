@@ -87,6 +87,9 @@ enum {
 	IB_USER_VERBS_CMD_CLOSE_XRCD,
 	IB_USER_VERBS_CMD_CREATE_XSRQ,
 	IB_USER_VERBS_CMD_OPEN_QP,
+	/* compat with current oracle libibverbs */
+	IB_USER_VERBS_CMD_SHPD_HANDLE = 46,
+	IB_USER_VERBS_CMD_SHARE_PD,
 };
 
 enum {
@@ -287,6 +290,22 @@ struct ib_uverbs_alloc_pd {
 
 struct ib_uverbs_alloc_pd_resp {
 	__u32 pd_handle;
+};
+
+struct ib_uverbs_shpd_handle {
+	__u64 response;
+	__u32 pd_handle;
+	__u64 shpd_key;
+};
+
+struct ib_uverbs_shpd_handle_resp {
+	__u32 shpd_handle;
+};
+
+struct ib_uverbs_share_pd {
+	__u64 response;
+	__u32 shpd_handle;
+	__u64 shpd_key;
 };
 
 struct ib_uverbs_dealloc_pd {

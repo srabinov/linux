@@ -248,6 +248,10 @@ struct ib_device *ib_alloc_device(size_t size)
 	INIT_LIST_HEAD(&device->client_data_list);
 	INIT_LIST_HEAD(&device->port_list);
 
+	/* shared objects support */
+	spin_lock_init(&device->shobj_lock);
+	idr_init(&device->pd_idr);
+
 	return device;
 }
 EXPORT_SYMBOL(ib_alloc_device);
@@ -260,6 +264,10 @@ EXPORT_SYMBOL(ib_alloc_device);
  */
 void ib_dealloc_device(struct ib_device *device)
 {
+	/* shared objects support */
+	WARN_ONCE(!idr_is_empty(&device->pd_idr), "pd idr not empty!");
+	idr_destroy(&device->pd_idr);
+
 	WARN_ON(device->reg_state != IB_DEV_UNREGISTERED &&
 		device->reg_state != IB_DEV_UNINITIALIZED);
 	kobject_put(&device->dev.kobj);

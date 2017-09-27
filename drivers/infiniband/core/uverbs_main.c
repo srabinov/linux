@@ -110,6 +110,13 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_CLOSE_XRCD]		= ib_uverbs_close_xrcd,
 	[IB_USER_VERBS_CMD_CREATE_XSRQ]		= ib_uverbs_create_xsrq,
 	[IB_USER_VERBS_CMD_OPEN_QP]		= ib_uverbs_open_qp,
+	/*
+	 * Upstream verbs index 0-40 above.
+	 * Oracle additions to verbs start here with some
+	 * space (index 46)
+	 */
+	[IB_USER_VERBS_CMD_SHPD_HANDLE]		= ib_uverbs_shpd_handle,
+	[IB_USER_VERBS_CMD_SHARE_PD]		= ib_uverbs_share_pd,
 };
 
 static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
@@ -646,7 +653,7 @@ static int verify_command_mask(struct ib_device *ib_dev, __u32 command)
 {
 	u64 mask;
 
-	if (command <= IB_USER_VERBS_CMD_OPEN_QP)
+	if (command <= IB_USER_VERBS_CMD_SHARE_PD)
 		mask = ib_dev->uverbs_cmd_mask;
 	else
 		mask = ib_dev->uverbs_ex_cmd_mask;

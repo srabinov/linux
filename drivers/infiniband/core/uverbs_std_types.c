@@ -41,7 +41,16 @@
 static int uverbs_free_ah(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
-	return rdma_destroy_ah((struct ib_ah *)uobject->object);
+	struct ib_ah *ah = uobject->object;
+	struct ib_pd *pd = ah->pd;
+	struct ib_uobject *pduobj =
+		ib_ctx_uobj_find(&pd->uobject, uobject->context);
+
+	WARN_ONCE(!pduobj, "pd uobj not found in context!\n");
+	if (pduobj)
+		atomic_dec(&pduobj->obj_usecnt);
+
+	return rdma_destroy_ah(ah);
 }
 
 static int uverbs_free_flow(struct ib_uobject *uobject,
@@ -53,6 +62,15 @@ static int uverbs_free_flow(struct ib_uobject *uobject,
 static int uverbs_free_mw(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
+	struct ib_mw *mw = uobject->object;
+	struct ib_pd *pd = mw->pd;
+	struct ib_uobject *pduobj =
+		ib_ctx_uobj_find(&pd->uobject, uobject->context);
+
+	WARN_ONCE(!pduobj, "pd uobj not found in context!\n");
+	if (pduobj)
+		atomic_dec(&pduobj->obj_usecnt);
+
 	return uverbs_dealloc_mw((struct ib_mw *)uobject->object);
 }
 
@@ -63,6 +81,13 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 	struct ib_uqp_object *uqp =
 		container_of(uobject, struct ib_uqp_object, uevent.uobject);
 	int ret;
+	struct ib_pd *pd = qp->pd;
+	struct ib_uobject *pduobj =
+		ib_ctx_uobj_find(&pd->uobject, uobject->context);
+
+	WARN_ONCE(!pduobj, "pd uobj not found in context!\n");
+	if (pduobj)
+		atomic_dec(&pduobj->obj_usecnt);
 
 	if (why == RDMA_REMOVE_DESTROY) {
 		if (!list_empty(&uqp->mcast_list))
@@ -102,6 +127,13 @@ static int uverbs_free_wq(struct ib_uobject *uobject,
 	struct ib_uwq_object *uwq =
 		container_of(uobject, struct ib_uwq_object, uevent.uobject);
 	int ret;
+	struct ib_pd *pd = wq->pd;
+	struct ib_uobject *pduobj =
+		ib_ctx_uobj_find(&pd->uobject, uobject->context);
+
+	WARN_ONCE(!pduobj, "pd uobj not found in context!\n");
+	if (pduobj)
+		atomic_dec(&pduobj->obj_usecnt);
 
 	ret = ib_destroy_wq(wq);
 	if (!ret || why != RDMA_REMOVE_DESTROY)
@@ -156,6 +188,15 @@ static int uverbs_free_cq(struct ib_uobject *uobject,
 static int uverbs_free_mr(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
+	struct ib_mr *mr = uobject->object;
+	struct ib_pd *pd = mr->pd;
+	struct ib_uobject *pduobj =
+		ib_ctx_uobj_find(&pd->uobject, uobject->context);
+
+	WARN_ONCE(!pduobj, "pd uobj not found in context!\n");
+	if (pduobj)
+		atomic_dec(&pduobj->obj_usecnt);
+
 	return ib_dereg_mr((struct ib_mr *)uobject->object);
 }
 
@@ -178,15 +219,54 @@ static int uverbs_free_xrcd(struct ib_uobject *uobject,
 	return ret;
 }
 
+/* must be called with device shobj_lock spinlock held! */
+void uverbs_release_pd(struct kref *kref)
+{
+	struct ib_pd *pd = container_of(kref, struct ib_pd, ref);
+	int usecnt = atomic_read(&pd->usecnt);
+	struct ib_device *device = pd->device;
+
+	WARN_ONCE(usecnt, "pd leak!! usecnt != 0! usecnt %d\n", usecnt);
+
+	/* ib pd kref should call us when last pd uobj want to release
+	 * the pd object. we expect zero usecnt here but if it is not
+	 * we cannot dealloc the ib pd!
+	 */
+	if (usecnt) {
+		spin_unlock(&device->shobj_lock);
+		return;
+	}
+
+	/* we are about to delete this shared ib_pd.
+	 * make sure no one can share it by handle..
+	 */
+	idr_remove(&device->pd_idr, pd->handle);
+
+	spin_unlock(&device->shobj_lock);
+
+	/* no one can share the pd and no context / ib_xxx need it */
+	ib_dealloc_pd(pd);
+}
+
 static int uverbs_free_pd(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
-	struct ib_pd *pd = uobject->object;
+	struct ib_ucontext	*context = uobject->context;
+	struct ib_device	*device = context->device;
+	struct ib_pd		*pd = uobject->object;
+	int			 ret;
 
-	if (why == RDMA_REMOVE_DESTROY && atomic_read(&pd->usecnt))
-		return -EBUSY;
+	/* if kref_put call uverbs_release_pd the spin lock
+	 * will be freed in the function. otherwise, here.
+	 */
+	spin_lock(&device->shobj_lock);
 
-	ib_dealloc_pd((struct ib_pd *)uobject->object);
+	/* make sure no other context currently using this pd */
+	ret = kref_put(&pd->ref, uverbs_release_pd);
+
+	if (!ret)
+		spin_unlock(&device->shobj_lock);
+
 	return 0;
 }
 
