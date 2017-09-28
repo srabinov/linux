@@ -555,7 +555,8 @@ static int rxe_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 				   struct ib_qp_init_attr *init,
-				   struct ib_udata *udata)
+				   struct ib_udata *udata,
+				   struct ib_ucontext *context)
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);

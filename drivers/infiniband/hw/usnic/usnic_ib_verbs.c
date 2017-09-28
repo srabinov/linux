@@ -468,8 +468,9 @@ int usnic_ib_dealloc_pd(struct ib_pd *pd)
 }
 
 struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
-					struct ib_qp_init_attr *init_attr,
-					struct ib_udata *udata)
+				 struct ib_qp_init_attr *init_attr,
+				 struct ib_udata *udata,
+				 struct ib_ucontext *context)
 {
 	int err;
 	struct usnic_ib_dev *us_ibdev;

@@ -2000,7 +2000,8 @@ static const char *ib_qp_type_str(enum ib_qp_type type)
 
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *init_attr,
-				struct ib_udata *udata)
+				struct ib_udata *udata,
+				struct ib_ucontext *context)
 {
 	struct mlx5_ib_dev *dev;
 	struct mlx5_ib_qp *qp;

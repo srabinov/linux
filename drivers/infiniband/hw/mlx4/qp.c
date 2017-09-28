@@ -1234,7 +1234,9 @@ static struct ib_qp *_mlx4_ib_create_qp(struct ib_pd *pd,
 
 struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *init_attr,
-				struct ib_udata *udata) {
+				struct ib_udata *udata,
+				struct ib_ucontext *context)
+{
 	struct ib_device *device = pd ? pd->device : init_attr->xrcd->device;
 	struct ib_qp *ibqp;
 	struct mlx4_ib_dev *dev = to_mdev(device);

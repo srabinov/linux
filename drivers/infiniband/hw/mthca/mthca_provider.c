@@ -517,7 +517,8 @@ static int mthca_destroy_srq(struct ib_srq *srq)
 
 static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 				     struct ib_qp_init_attr *init_attr,
-				     struct ib_udata *udata)
+				     struct ib_udata *udata,
+				     struct ib_ucontext *context)
 {
 	struct mthca_create_qp ucmd;
 	struct mthca_qp *qp;

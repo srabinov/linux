@@ -1406,7 +1406,8 @@ static void ocrdma_store_gsi_qp_cq(struct ocrdma_dev *dev,
 
 struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 			       struct ib_qp_init_attr *attrs,
-			       struct ib_udata *udata)
+			       struct ib_udata *udata,
+			       struct ib_ucontext *context)
 {
 	int status;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);

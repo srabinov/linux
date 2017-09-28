@@ -1502,7 +1502,7 @@ static int create_qp(struct ib_uverbs_file *file,
 	if (cmd->qp_type == IB_QPT_XRC_TGT)
 		qp = ib_create_qp(pd, &attr);
 	else
-		qp = device->create_qp(pd, &attr, uhw);
+		qp = device->create_qp(pd, &attr, uhw, file->ucontext);
 
 	if (IS_ERR(qp)) {
 		ret = PTR_ERR(qp);

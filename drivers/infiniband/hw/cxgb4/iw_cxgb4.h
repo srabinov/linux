@@ -978,7 +978,8 @@ int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 int c4iw_destroy_qp(struct ib_qp *ib_qp);
 struct ib_qp *c4iw_create_qp(struct ib_pd *pd,
 			     struct ib_qp_init_attr *attrs,
-			     struct ib_udata *udata);
+			     struct ib_udata *udata,
+			     struct ib_ucontext *context);
 int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				 int attr_mask, struct ib_udata *udata);
 int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,

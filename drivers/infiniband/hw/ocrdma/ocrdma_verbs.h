@@ -95,7 +95,8 @@ int ocrdma_destroy_cq(struct ib_cq *);
 
 struct ib_qp *ocrdma_create_qp(struct ib_pd *,
 			       struct ib_qp_init_attr *attrs,
-			       struct ib_udata *);
+			       struct ib_udata *,
+			       struct ib_ucontext *);
 int _ocrdma_modify_qp(struct ib_qp *, struct ib_qp_attr *attr,
 		      int attr_mask);
 int ocrdma_modify_qp(struct ib_qp *, struct ib_qp_attr *attr,
