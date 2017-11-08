@@ -1056,8 +1056,7 @@ static void ib_uverbs_add_one(struct ib_device *device)
 
 	atomic_set(&uverbs_dev->refcount, 1);
 	init_completion(&uverbs_dev->comp);
-	uverbs_dev->xrcd_tree = RB_ROOT;
-	mutex_init(&uverbs_dev->xrcd_tree_mutex);
+	INIT_OBJ_STORAGE(uverbs_dev, xrcd);
 	kobject_init(&uverbs_dev->kobj, &ib_uverbs_dev_ktype);
 	mutex_init(&uverbs_dev->lists_mutex);
 	INIT_LIST_HEAD(&uverbs_dev->uverbs_file_list);

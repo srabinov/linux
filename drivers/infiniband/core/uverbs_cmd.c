@@ -384,30 +384,30 @@ ssize_t ib_uverbs_dealloc_pd(struct ib_uverbs_file *file,
 	return ret ?: in_len;
 }
 
-struct xrcd_table_entry {
-	struct rb_node  node;
-	struct ib_xrcd *xrcd;
-	struct inode   *inode;
+struct object_table_entry {
+	struct rb_node   node;
+	void		*object;
+	struct inode	*inode; /* key */
 };
 
-static int xrcd_table_insert(struct ib_uverbs_device *dev,
-			    struct inode *inode,
-			    struct ib_xrcd *xrcd)
+static int table_insert(struct inode *inode,
+			void *object,
+			struct rb_root *root)
 {
-	struct xrcd_table_entry *entry, *scan;
-	struct rb_node **p = &dev->xrcd_tree.rb_node;
+	struct object_table_entry *entry, *scan;
 	struct rb_node *parent = NULL;
+	struct rb_node **p = &root->rb_node;
 
 	entry = kmalloc(sizeof *entry, GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
-	entry->xrcd  = xrcd;
+	entry->object = object;
 	entry->inode = inode;
 
 	while (*p) {
 		parent = *p;
-		scan = rb_entry(parent, struct xrcd_table_entry, node);
+		scan = rb_entry(parent, struct object_table_entry, node);
 
 		if (inode < scan->inode) {
 			p = &(*p)->rb_left;
@@ -420,19 +420,19 @@ static int xrcd_table_insert(struct ib_uverbs_device *dev,
 	}
 
 	rb_link_node(&entry->node, parent, p);
-	rb_insert_color(&entry->node, &dev->xrcd_tree);
+	rb_insert_color(&entry->node, root);
 	igrab(inode);
 	return 0;
 }
 
-static struct xrcd_table_entry *xrcd_table_search(struct ib_uverbs_device *dev,
-						  struct inode *inode)
+static struct object_table_entry *table_search(struct inode *inode,
+					struct rb_root *root)
 {
-	struct xrcd_table_entry *entry;
-	struct rb_node *p = dev->xrcd_tree.rb_node;
+	struct object_table_entry *entry;
+	struct rb_node *p = root->rb_node;
 
 	while (p) {
-		entry = rb_entry(p, struct xrcd_table_entry, node);
+		entry = rb_entry(p, struct object_table_entry, node);
 
 		if (inode < entry->inode)
 			p = p->rb_left;
@@ -445,28 +445,41 @@ static struct xrcd_table_entry *xrcd_table_search(struct ib_uverbs_device *dev,
 	return NULL;
 }
 
+static void table_delete(struct inode *inode,
+			 struct rb_root *root)
+{
+	struct object_table_entry *entry;
+
+	entry = table_search(inode, root);
+	if (entry) {
+		iput(inode);
+		rb_erase(&entry->node, root);
+		kfree(entry);
+	}
+}
+
+static int xrcd_table_insert(struct ib_uverbs_device *dev,
+			     struct inode *inode,
+			     struct ib_xrcd *xrcd)
+{
+	return table_insert(inode, xrcd, &dev->xrcd_tree);
+}
+
 static struct ib_xrcd *find_xrcd(struct ib_uverbs_device *dev, struct inode *inode)
 {
-	struct xrcd_table_entry *entry;
+	struct object_table_entry *entry;
 
-	entry = xrcd_table_search(dev, inode);
+	entry = table_search(inode, &dev->xrcd_tree);
 	if (!entry)
 		return NULL;
 
-	return entry->xrcd;
+	return entry->object;
 }
 
 static void xrcd_table_delete(struct ib_uverbs_device *dev,
 			      struct inode *inode)
 {
-	struct xrcd_table_entry *entry;
-
-	entry = xrcd_table_search(dev, inode);
-	if (entry) {
-		iput(inode);
-		rb_erase(&entry->node, &dev->xrcd_tree);
-		kfree(entry);
-	}
+	table_delete(inode, &dev->xrcd_tree);
 }
 
 ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,

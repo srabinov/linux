@@ -63,6 +63,16 @@
 		(udata)->outlen = (olen);					\
 	} while (0)
 
+#define DEFINE_OBJ_STORAGE(__type)		\
+	struct rb_root	__type ## _tree;	\
+	struct mutex	__type ## _tree_mutex
+
+#define INIT_OBJ_STORAGE(__dev, __type)				\
+	do {							\
+		__dev->__type ## _tree = RB_ROOT;		\
+		mutex_init(&__dev->__type ## _tree_mutex);	\
+	} while (0)
+
 /*
  * Our lifetime rules for these structs are the following:
  *
@@ -93,8 +103,7 @@ struct ib_uverbs_device {
 	struct ib_device	__rcu	       *ib_dev;
 	int					devnum;
 	struct cdev			        cdev;
-	struct rb_root				xrcd_tree;
-	struct mutex				xrcd_tree_mutex;
+	DEFINE_OBJ_STORAGE(xrcd);
 	struct kobject				kobj;
 	struct srcu_struct			disassociate_srcu;
 	struct mutex				lists_mutex; /* protect lists */
