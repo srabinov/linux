@@ -111,6 +111,8 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_CLOSE_XRCD]		= ib_uverbs_close_xrcd,
 	[IB_USER_VERBS_CMD_CREATE_XSRQ]		= ib_uverbs_create_xsrq,
 	[IB_USER_VERBS_CMD_OPEN_QP]		= ib_uverbs_open_qp,
+	[IB_USER_VERBS_CMD_ALLOC_SHPD]          = ib_uverbs_alloc_shpd,
+	[IB_USER_VERBS_CMD_SHARE_PD]            = ib_uverbs_share_pd,
 };
 
 static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
@@ -636,7 +638,7 @@ static int verify_command_mask(struct ib_device *ib_dev, __u32 command)
 {
 	u64 mask;
 
-	if (command <= IB_USER_VERBS_CMD_OPEN_QP)
+	if (command <= IB_USER_VERBS_CMD_SHARE_PD)
 		mask = ib_dev->uverbs_cmd_mask;
 	else
 		mask = ib_dev->uverbs_ex_cmd_mask;
@@ -1057,6 +1059,7 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	atomic_set(&uverbs_dev->refcount, 1);
 	init_completion(&uverbs_dev->comp);
 	INIT_OBJ_STORAGE(uverbs_dev, xrcd);
+	INIT_OBJ_STORAGE(uverbs_dev, shpd);
 	kobject_init(&uverbs_dev->kobj, &ib_uverbs_dev_ktype);
 	mutex_init(&uverbs_dev->lists_mutex);
 	INIT_LIST_HEAD(&uverbs_dev->uverbs_file_list);

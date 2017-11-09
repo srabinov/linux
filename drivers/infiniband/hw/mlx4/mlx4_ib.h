@@ -98,6 +98,11 @@ struct mlx4_ib_pd {
 	u32			pdn;
 };
 
+struct mlx4_ib_shpd {
+	struct ib_shpd          ibshpd;
+	u32                     pdn;
+};
+
 struct mlx4_ib_xrcd {
 	struct ib_xrcd		ibxrcd;
 	u32			xrcdn;
@@ -651,6 +656,11 @@ struct mlx4_uverbs_ex_query_device_resp {
 	__u32 max_inl_recv_sz;
 	__u32 reserved;
 };
+
+static inline struct mlx4_ib_shpd *to_mshpd(struct ib_shpd *ibshpd)
+{
+	return container_of(ibshpd, struct mlx4_ib_shpd, ibshpd);
+}
 
 static inline struct mlx4_ib_dev *to_mdev(struct ib_device *ibdev)
 {

@@ -1503,11 +1503,19 @@ struct ib_udata {
 	size_t       outlen;
 };
 
+struct ib_shpd {
+	struct ib_device       *device;
+	int                     ref_count; /* count procs sharing the pd*/
+	u64                     share_key;
+	struct inode	       *inode;
+};
+
 struct ib_pd {
 	u32			local_dma_lkey;
 	u32			flags;
 	struct ib_device       *device;
 	struct ib_uobject      *uobject;
+	struct ib_shpd         *shpd;
 	atomic_t          	usecnt; /* count all resources */
 
 	u32			unsafe_global_rkey;
@@ -2154,6 +2162,16 @@ struct ib_device {
 					       struct ib_ucontext *context,
 					       struct ib_udata *udata);
 	int                        (*dealloc_pd)(struct ib_pd *pd);
+	struct ib_shpd            *(*alloc_shpd)(struct ib_device *ibdev,
+						 struct ib_pd *pd,
+						 struct ib_udata *udata);
+	struct ib_pd              *(*share_pd)(struct ib_device *ibdev,
+					       struct ib_ucontext *context,
+					       struct ib_udata *udata,
+					       struct ib_shpd *shpd);
+	int                        (*remove_shpd)(struct ib_device *ibdev,
+						  struct ib_shpd *shpd,
+						  int atinit);
 	struct ib_ah *             (*create_ah)(struct ib_pd *pd,
 						struct rdma_ah_attr *ah_attr,
 						struct ib_udata *udata);

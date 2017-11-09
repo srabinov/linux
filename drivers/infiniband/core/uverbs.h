@@ -104,6 +104,7 @@ struct ib_uverbs_device {
 	int					devnum;
 	struct cdev			        cdev;
 	DEFINE_OBJ_STORAGE(xrcd);
+	DEFINE_OBJ_STORAGE(shpd);
 	struct kobject				kobj;
 	struct srcu_struct			disassociate_srcu;
 	struct mutex				lists_mutex; /* protect lists */
@@ -202,6 +203,8 @@ struct ib_ucq_object {
 };
 
 extern const struct file_operations uverbs_event_fops;
+
+void ib_uverbs_deref_shpd(struct ib_shpd *shpd, struct ib_uverbs_device *dev);
 void ib_uverbs_init_event_queue(struct ib_uverbs_event_queue *ev_queue);
 struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file,
 					      struct ib_device *ib_dev);
@@ -260,6 +263,8 @@ IB_UVERBS_DECLARE_CMD(query_device);
 IB_UVERBS_DECLARE_CMD(query_port);
 IB_UVERBS_DECLARE_CMD(alloc_pd);
 IB_UVERBS_DECLARE_CMD(dealloc_pd);
+IB_UVERBS_DECLARE_CMD(alloc_shpd);
+IB_UVERBS_DECLARE_CMD(share_pd);
 IB_UVERBS_DECLARE_CMD(reg_mr);
 IB_UVERBS_DECLARE_CMD(rereg_mr);
 IB_UVERBS_DECLARE_CMD(dereg_mr);

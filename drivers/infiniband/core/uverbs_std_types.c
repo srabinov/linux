@@ -182,11 +182,16 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
 	struct ib_pd *pd = uobject->object;
+	struct ib_shpd *shpd = pd->shpd;
 
 	if (why == RDMA_REMOVE_DESTROY && atomic_read(&pd->usecnt))
 		return -EBUSY;
 
 	ib_dealloc_pd((struct ib_pd *)uobject->object);
+
+	if (shpd)
+		ib_uverbs_deref_shpd(shpd, uobject->context->ufile->device);
+
 	return 0;
 }
 
