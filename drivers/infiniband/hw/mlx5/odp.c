@@ -90,6 +90,9 @@ static struct ib_umem_odp *odp_lookup(struct ib_ucontext *ctx,
 	struct ib_umem_odp *odp;
 	struct rb_node *rb;
 
+	if (!ctx)
+		return NULL;
+
 	down_read(&ctx->umem_rwsem);
 	odp = rbt_ib_umem_lookup(&ctx->umem_tree, start, length);
 	if (!odp)
@@ -116,12 +119,22 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t offset,
 			   size_t nentries, struct mlx5_ib_mr *mr, int flags)
 {
 	struct ib_pd *pd = mr->ibmr.pd;
-	struct ib_ucontext *ctx = pd->uobject->context;
+	struct ib_ucontext *ctx = NULL;
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct ib_umem_odp *odp;
 	unsigned long va;
 	int i;
 
+	if (WARN_ON(!mr))
+		goto err_ctx;
+	if (WARN_ON(!mr->umem))
+		goto err_ctx;
+	if (WARN_ON(!mr->umem->context))
+		goto err_ctx;
+
+	ctx = mr->umem->context;
+
+err_ctx:
 	if (flags & MLX5_IB_UPD_XLT_ZAP) {
 		for (i = 0; i < nentries; i++, pklm++) {
 			pklm->bcount = cpu_to_be32(MLX5_IMR_MTT_SIZE);
@@ -366,13 +379,22 @@ fail:
 static struct ib_umem_odp *implicit_mr_get_data(struct mlx5_ib_mr *mr,
 						u64 io_virt, size_t bcnt)
 {
-	struct ib_ucontext *ctx = mr->ibmr.pd->uobject->context;
+	struct ib_ucontext *ctx = NULL;
 	struct mlx5_ib_dev *dev = to_mdev(mr->ibmr.pd->device);
 	struct ib_umem_odp *odp, *result = NULL;
 	u64 addr = io_virt & MLX5_IMR_MTT_MASK;
 	int nentries = 0, start_idx = 0, ret;
 	struct mlx5_ib_mr *mtt;
 	struct ib_umem *umem;
+
+	if (WARN_ON(!mr))
+		goto err_ctx;
+	if (WARN_ON(!mr->umem))
+		goto err_ctx;
+	if (WARN_ON(!mr->umem->context))
+		goto err_ctx;
+
+	ctx = mr->umem->context;
 
 	mutex_lock(&mr->umem->odp_data->umem_mutex);
 	odp = odp_lookup(ctx, addr, 1, mr);
@@ -434,6 +456,9 @@ next_mr:
 
 	mutex_unlock(&mr->umem->odp_data->umem_mutex);
 	return result;
+
+err_ctx:
+	return ERR_PTR(-EINVAL);
 }
 
 struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
@@ -484,7 +509,16 @@ static int mr_leaf_free(struct ib_umem *umem, u64 start,
 
 void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 {
-	struct ib_ucontext *ctx = imr->ibmr.pd->uobject->context;
+	struct ib_ucontext *ctx = NULL;
+
+	if (WARN_ON(!imr))
+		return;
+	if (WARN_ON(!imr->umem))
+		return;
+	if (WARN_ON(!imr->umem->context))
+		return;
+
+	ctx = imr->umem->context;
 
 	down_read(&ctx->umem_rwsem);
 	rbt_ib_umem_for_each_in_range(&ctx->umem_tree, 0, ULLONG_MAX,
