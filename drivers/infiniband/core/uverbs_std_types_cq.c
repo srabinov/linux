@@ -129,6 +129,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
 	obj->uobject.user_handle = user_handle;
 	atomic_set(&cq->usecnt, 0);
 	cq->res.type = RDMA_RESTRACK_CQ;
+	cq->res.user = true;
 	rdma_restrack_add(&cq->res);
 
 	ret = uverbs_copy_to(attrs, UVERBS_ATTR_CREATE_CQ_RESP_CQE, &cq->cqe,
