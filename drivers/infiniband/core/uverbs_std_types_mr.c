@@ -36,7 +36,8 @@
 static int uverbs_free_mr(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
-	return ib_dereg_mr((struct ib_mr *)uobject->object);
+	return ib_dereg_mr_user((struct ib_mr *)uobject->object,
+				uobject);
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(struct ib_device *ib_dev,

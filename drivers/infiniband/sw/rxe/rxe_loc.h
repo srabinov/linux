@@ -111,7 +111,7 @@ int rxe_mem_init_dma(struct rxe_dev *rxe, struct rxe_pd *pd,
 
 int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
 		      u64 length, u64 iova, int access, struct ib_udata *udata,
-		      struct rxe_mem *mr);
+		      struct rxe_mem *mr, struct ib_uobject *uobject);
 
 int rxe_mem_init_fast(struct rxe_dev *rxe, struct rxe_pd *pd,
 		      int max_pages, struct rxe_mem *mem);
@@ -161,7 +161,7 @@ int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init);
 int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 		     struct ib_qp_init_attr *init,
 		     struct rxe_create_qp_resp __user *uresp,
-		     struct ib_pd *ibpd);
+		     struct ib_pd *ibpd, struct ib_uobject *uobject);
 
 int rxe_qp_to_init(struct rxe_qp *qp, struct ib_qp_init_attr *init);
 

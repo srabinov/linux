@@ -863,12 +863,12 @@ static int mr_cache_max_order(struct mlx5_ib_dev *dev)
 static int mr_umem_get(struct ib_pd *pd, u64 start, u64 length,
 		       int access_flags, struct ib_umem **umem,
 		       int *npages, int *page_shift, int *ncont,
-		       int *order)
+		       int *order, struct ib_ucontext *ucontext)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	int err;
 
-	*umem = ib_umem_get(pd->uobject->context, start, length,
+	*umem = ib_umem_get(ucontext, start, length,
 			    access_flags, 0);
 	err = PTR_ERR_OR_ZERO(*umem);
 	if (err) {
@@ -1308,7 +1308,8 @@ struct ib_mr *mlx5_ib_reg_dm_mr(struct ib_pd *pd, struct ib_dm *dm,
 
 struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int access_flags,
-				  struct ib_udata *udata)
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_mr *mr = NULL;
@@ -1319,6 +1320,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	int ncont;
 	int order;
 	int err;
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
 	if (!IS_ENABLED(CONFIG_INFINIBAND_USER_MEM))
 		return ERR_PTR(-EOPNOTSUPP);
@@ -1332,7 +1334,8 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		    !(dev->odp_caps.general_caps & IB_ODP_SUPPORT_IMPLICIT))
 			return ERR_PTR(-EINVAL);
 
-		mr = mlx5_ib_alloc_implicit_mr(to_mpd(pd), access_flags);
+		mr = mlx5_ib_alloc_implicit_mr(to_mpd(pd), access_flags,
+					       uobject);
 		if (IS_ERR(mr))
 			return ERR_CAST(mr);
 		return &mr->ibmr;
@@ -1340,7 +1343,7 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 #endif
 
 	err = mr_umem_get(pd, start, length, access_flags, &umem, &npages,
-			   &page_shift, &ncont, &order);
+			   &page_shift, &ncont, &order, ucontext);
 
 	if (err < 0)
 		return ERR_PTR(err);
@@ -1450,7 +1453,8 @@ static int rereg_umr(struct ib_pd *pd, struct mlx5_ib_mr *mr,
 
 int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 			  u64 length, u64 virt_addr, int new_access_flags,
-			  struct ib_pd *new_pd, struct ib_udata *udata)
+			  struct ib_pd *new_pd, struct ib_udata *udata,
+			  struct ib_uobject *uobject)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ib_mr->device);
 	struct mlx5_ib_mr *mr = to_mmr(ib_mr);
@@ -1466,6 +1470,7 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 	int ncont = 0;
 	int order = 0;
 	int err;
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
 	mlx5_ib_dbg(dev, "start 0x%llx, virt_addr 0x%llx, length 0x%llx, access_flags 0x%x\n",
 		    start, virt_addr, length, access_flags);
@@ -1480,7 +1485,8 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 		flags |= IB_MR_REREG_TRANS;
 		ib_umem_release(mr->umem);
 		err = mr_umem_get(pd, addr, len, access_flags, &mr->umem,
-				  &npages, &page_shift, &ncont, &order);
+				  &npages, &page_shift, &ncont, &order,
+				  ucontext);
 		if (err)
 			goto err;
 	}
@@ -1663,7 +1669,7 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 		mlx5_mr_cache_free(dev, mr);
 }
 
-int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
+int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_uobject *uobject)
 {
 	dereg_mr(to_mdev(ibmr->device), to_mmr(ibmr));
 	return 0;
@@ -1671,7 +1677,8 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 
 struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 			       enum ib_mr_type mr_type,
-			       u32 max_num_sg)
+			       u32 max_num_sg,
+			       struct ib_uobject *uobject)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);

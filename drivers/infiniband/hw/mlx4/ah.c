@@ -140,7 +140,8 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd,
 }
 
 struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-				struct ib_udata *udata)
+				struct ib_udata *udata,
+				struct ib_uobject *uobject)
 
 {
 	struct mlx4_ib_ah *ah;

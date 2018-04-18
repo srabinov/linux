@@ -447,15 +447,16 @@ int qedr_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 }
 
 struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,
-			    struct ib_ucontext *context, struct ib_udata *udata)
+			    struct ib_uobject *uobject, struct ib_udata *udata)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibdev);
 	struct qedr_pd *pd;
 	u16 pd_id;
 	int rc;
+	struct ib_ucontext *context = uobject ? uobject->context : NULL;
 
 	DP_DEBUG(dev, QEDR_MSG_INIT, "Function called from: %s\n",
-		 (udata && context) ? "User Lib" : "Kernel");
+		 context ? "User Lib" : "Kernel");
 
 	if (!dev->rdma_ctx) {
 		DP_ERR(dev, "invalid RDMA context\n");
@@ -495,7 +496,7 @@ err:
 	return ERR_PTR(rc);
 }
 
-int qedr_dealloc_pd(struct ib_pd *ibpd)
+int qedr_dealloc_pd(struct ib_pd *ibpd, struct ib_uobject *uobject)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
@@ -1140,7 +1141,8 @@ static inline int get_gid_info_from_table(struct ib_qp *ibqp,
 }
 
 static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
-			       struct ib_qp_init_attr *attrs)
+			       struct ib_qp_init_attr *attrs,
+			       struct ib_uobject *uobject)
 {
 	struct qedr_device_attr *qattr = &dev->attr;
 
@@ -1181,7 +1183,7 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 	}
 
 	/* Unprivileged user space cannot create special QP */
-	if (ibpd->uobject && attrs->qp_type == IB_QPT_GSI) {
+	if (uobject && attrs->qp_type == IB_QPT_GSI) {
 		DP_ERR(dev,
 		       "create qp: userspace can't create special QPs of type=0x%x\n",
 		       attrs->qp_type);
@@ -1381,7 +1383,8 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 			       struct qedr_qp *qp,
 			       struct ib_pd *ibpd,
 			       struct ib_udata *udata,
-			       struct ib_qp_init_attr *attrs)
+			       struct ib_qp_init_attr *attrs,
+			       struct ib_uobject *uobject)
 {
 	struct qed_rdma_create_qp_in_params in_params;
 	struct qed_rdma_create_qp_out_params out_params;
@@ -1391,7 +1394,7 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	int alloc_and_init = rdma_protocol_roce(&dev->ibdev, 1);
 	int rc = -EINVAL;
 
-	ib_ctx = ibpd->uobject->context;
+	ib_ctx = uobject->context;
 
 	memset(&ureq, 0, sizeof(ureq));
 	rc = ib_copy_from_udata(&ureq, udata, sizeof(ureq));
@@ -1666,7 +1669,8 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 
 struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 			     struct ib_qp_init_attr *attrs,
-			     struct ib_udata *udata)
+			     struct ib_udata *udata,
+			     struct ib_uobject *uobject)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
@@ -1677,7 +1681,7 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 	DP_DEBUG(dev, QEDR_MSG_QP, "create qp: called from %s, pd=%p\n",
 		 udata ? "user library" : "kernel", pd);
 
-	rc = qedr_check_qp_attrs(ibpd, dev, attrs);
+	rc = qedr_check_qp_attrs(ibpd, dev, attrs, uobject);
 	if (rc)
 		return ERR_PTR(rc);
 
@@ -1708,7 +1712,7 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 	}
 
 	if (udata)
-		rc = qedr_create_user_qp(dev, qp, ibpd, udata, attrs);
+		rc = qedr_create_user_qp(dev, qp, ibpd, udata, attrs, uobject);
 	else
 		rc = qedr_create_kernel_qp(dev, qp, ibpd, attrs);
 
@@ -2242,7 +2246,7 @@ static int qedr_free_qp_resources(struct qedr_dev *dev, struct qedr_qp *qp)
 	return 0;
 }
 
-int qedr_destroy_qp(struct ib_qp *ibqp)
+int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_uobject *uobject)
 {
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
 	struct qedr_dev *dev = qp->dev;
@@ -2296,7 +2300,7 @@ int qedr_destroy_qp(struct ib_qp *ibqp)
 }
 
 struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
-			     struct ib_udata *udata)
+			     struct ib_udata *udata, struct ib_uobject *uobject)
 {
 	struct qedr_ah *ah;
 
@@ -2378,7 +2382,8 @@ done:
 }
 
 struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
-			       u64 usr_addr, int acc, struct ib_udata *udata)
+			       u64 usr_addr, int acc, struct ib_udata *udata,
+			       struct ib_uobject *uobject)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qedr_mr *mr;
@@ -2399,7 +2404,7 @@ struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 
 	mr->type = QEDR_MR_USER;
 
-	mr->umem = ib_umem_get(ibpd->uobject->context, start, len, acc, 0);
+	mr->umem = ib_umem_get(uobject->context, start, len, acc, 0);
 	if (IS_ERR(mr->umem)) {
 		rc = -EFAULT;
 		goto err0;
@@ -2463,7 +2468,7 @@ err0:
 	return ERR_PTR(rc);
 }
 
-int qedr_dereg_mr(struct ib_mr *ib_mr)
+int qedr_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject)
 {
 	struct qedr_mr *mr = get_qedr_mr(ib_mr);
 	struct qedr_dev *dev = get_qedr_dev(ib_mr->device);
@@ -2556,7 +2561,8 @@ err0:
 }
 
 struct ib_mr *qedr_alloc_mr(struct ib_pd *ibpd,
-			    enum ib_mr_type mr_type, u32 max_num_sg)
+			    enum ib_mr_type mr_type, u32 max_num_sg,
+			    struct ib_uobject *uobject)
 {
 	struct qedr_mr *mr;
 

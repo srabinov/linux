@@ -165,18 +165,20 @@ int bnxt_re_query_gid(struct ib_device *ibdev, u8 port_num,
 enum rdma_link_layer bnxt_re_get_link_layer(struct ib_device *ibdev,
 					    u8 port_num);
 struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
-			       struct ib_ucontext *context,
+			       struct ib_uobject *uobject,
 			       struct ib_udata *udata);
-int bnxt_re_dealloc_pd(struct ib_pd *pd);
+int bnxt_re_dealloc_pd(struct ib_pd *pd, struct ib_uobject *uobject);
 struct ib_ah *bnxt_re_create_ah(struct ib_pd *pd,
 				struct rdma_ah_attr *ah_attr,
-				struct ib_udata *udata);
+				struct ib_udata *udata,
+				struct ib_uobject *uobject);
 int bnxt_re_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_destroy_ah(struct ib_ah *ah);
 struct ib_srq *bnxt_re_create_srq(struct ib_pd *pd,
 				  struct ib_srq_init_attr *srq_init_attr,
-				  struct ib_udata *udata);
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject);
 int bnxt_re_modify_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr,
 		       enum ib_srq_attr_mask srq_attr_mask,
 		       struct ib_udata *udata);
@@ -186,12 +188,13 @@ int bnxt_re_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *recv_wr,
 			  struct ib_recv_wr **bad_recv_wr);
 struct ib_qp *bnxt_re_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *qp_init_attr,
-				struct ib_udata *udata);
+				struct ib_udata *udata,
+				struct ib_uobject *uobject);
 int bnxt_re_modify_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 		      int qp_attr_mask, struct ib_udata *udata);
 int bnxt_re_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 		     int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
-int bnxt_re_destroy_qp(struct ib_qp *qp);
+int bnxt_re_destroy_qp(struct ib_qp *qp, struct ib_uobject *uobject);
 int bnxt_re_post_send(struct ib_qp *qp, struct ib_send_wr *send_wr,
 		      struct ib_send_wr **bad_send_wr);
 int bnxt_re_post_recv(struct ib_qp *qp, struct ib_recv_wr *recv_wr,
@@ -208,14 +211,15 @@ struct ib_mr *bnxt_re_get_dma_mr(struct ib_pd *pd, int mr_access_flags);
 int bnxt_re_map_mr_sg(struct ib_mr *ib_mr, struct scatterlist *sg, int sg_nents,
 		      unsigned int *sg_offset);
 struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type mr_type,
-			       u32 max_num_sg);
-int bnxt_re_dereg_mr(struct ib_mr *mr);
+			       u32 max_num_sg, struct ib_uobject *uobject);
+int bnxt_re_dereg_mr(struct ib_mr *mr, struct ib_uobject *uobject);
 struct ib_mw *bnxt_re_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
 			       struct ib_udata *udata);
 int bnxt_re_dealloc_mw(struct ib_mw *mw);
 struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int mr_access_flags,
-				  struct ib_udata *udata);
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject);
 struct ib_ucontext *bnxt_re_alloc_ucontext(struct ib_device *ibdev,
 					   struct ib_udata *udata);
 int bnxt_re_dealloc_ucontext(struct ib_ucontext *context);

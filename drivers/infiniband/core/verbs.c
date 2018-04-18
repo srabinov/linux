@@ -248,7 +248,6 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 		return pd;
 
 	pd->device = device;
-	pd->uobject = NULL;
 	pd->__internal_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
 	pd->flags = flags;
@@ -298,17 +297,18 @@ EXPORT_SYMBOL(__ib_alloc_pd);
 /**
  * ib_dealloc_pd - Deallocates a protection domain.
  * @pd: The protection domain to deallocate.
+ * @uobject: User PD object, NULL if none.
  *
  * It is an error to call this function while any resources in the pd still
  * exist.  The caller is responsible to synchronously destroy them and
  * guarantee no new allocations will happen.
  */
-void ib_dealloc_pd(struct ib_pd *pd)
+void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_uobject *uobject)
 {
 	int ret;
 
 	if (pd->__internal_mr) {
-		ret = pd->device->dereg_mr(pd->__internal_mr);
+		ret = pd->device->dereg_mr(pd->__internal_mr, uobject);
 		WARN_ON(ret);
 		pd->__internal_mr = NULL;
 	}
@@ -320,8 +320,22 @@ void ib_dealloc_pd(struct ib_pd *pd)
 	rdma_restrack_del(&pd->res);
 	/* Making delalloc_pd a void return is a WIP, no driver should return
 	   an error here. */
-	ret = pd->device->dealloc_pd(pd);
+	ret = pd->device->dealloc_pd(pd, uobject);
 	WARN_ONCE(ret, "Infiniband HW driver failed dealloc_pd");
+}
+EXPORT_SYMBOL(ib_dealloc_pd_user);
+
+/**
+ * ib_dealloc_pd - Deallocates a protection domain.
+ * @pd: The protection domain to deallocate.
+ *
+ * It is an error to call this function while any resources in the pd still
+ * exist.  The caller is responsible to synchronously destroy them and
+ * guarantee no new allocations will happen.
+ */
+void ib_dealloc_pd(struct ib_pd *pd)
+{
+	ib_dealloc_pd_user(pd, NULL);
 }
 EXPORT_SYMBOL(ib_dealloc_pd);
 
@@ -329,11 +343,12 @@ EXPORT_SYMBOL(ib_dealloc_pd);
 
 static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 				     struct rdma_ah_attr *ah_attr,
-				     struct ib_udata *udata)
+				     struct ib_udata *udata,
+				     struct ib_uobject *uobject)
 {
 	struct ib_ah *ah;
 
-	ah = pd->device->create_ah(pd, ah_attr, udata);
+	ah = pd->device->create_ah(pd, ah_attr, udata, uobject);
 
 	if (!IS_ERR(ah)) {
 		ah->device  = pd->device;
@@ -348,7 +363,7 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 
 struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
 {
-	return _rdma_create_ah(pd, ah_attr, NULL);
+	return _rdma_create_ah(pd, ah_attr, NULL, NULL);
 }
 EXPORT_SYMBOL(rdma_create_ah);
 
@@ -367,7 +382,8 @@ EXPORT_SYMBOL(rdma_create_ah);
  */
 struct ib_ah *rdma_create_user_ah(struct ib_pd *pd,
 				  struct rdma_ah_attr *ah_attr,
-				  struct ib_udata *udata)
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject)
 {
 	int err;
 
@@ -377,7 +393,7 @@ struct ib_ah *rdma_create_user_ah(struct ib_pd *pd,
 			return ERR_PTR(err);
 	}
 
-	return _rdma_create_ah(pd, ah_attr, udata);
+	return _rdma_create_ah(pd, ah_attr, udata, uobject);
 }
 EXPORT_SYMBOL(rdma_create_user_ah);
 
@@ -692,7 +708,7 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 	if (!pd->device->create_srq)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	srq = pd->device->create_srq(pd, srq_init_attr, NULL);
+	srq = pd->device->create_srq(pd, srq_init_attr, NULL, NULL);
 
 	if (!IS_ERR(srq)) {
 		srq->device    	   = pd->device;
@@ -844,7 +860,8 @@ struct ib_qp *ib_open_qp(struct ib_xrcd *xrcd,
 EXPORT_SYMBOL(ib_open_qp);
 
 static struct ib_qp *ib_create_xrc_qp(struct ib_qp *qp,
-		struct ib_qp_init_attr *qp_init_attr)
+				      struct ib_qp_init_attr *qp_init_attr,
+				      struct ib_uobject *uobject)
 {
 	struct ib_qp *real_qp = qp;
 
@@ -862,12 +879,13 @@ static struct ib_qp *ib_create_xrc_qp(struct ib_qp *qp,
 	if (!IS_ERR(qp))
 		__ib_insert_xrcd_qp(qp_init_attr->xrcd, real_qp);
 	else
-		real_qp->device->destroy_qp(real_qp);
+		real_qp->device->destroy_qp(real_qp, uobject);
 	return qp;
 }
 
-struct ib_qp *ib_create_qp(struct ib_pd *pd,
-			   struct ib_qp_init_attr *qp_init_attr)
+struct ib_qp *ib_create_qp_user(struct ib_pd *pd,
+				struct ib_qp_init_attr *qp_init_attr,
+				struct ib_uobject *uobject)
 {
 	struct ib_device *device = pd ? pd->device : qp_init_attr->xrcd->device;
 	struct ib_qp *qp;
@@ -888,7 +906,7 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 	if (qp_init_attr->cap.max_rdma_ctxs)
 		rdma_rw_init_qp(device, qp_init_attr);
 
-	qp = _ib_create_qp(device, pd, qp_init_attr, NULL, NULL);
+	qp = _ib_create_qp(device, pd, qp_init_attr, NULL, uobject);
 	if (IS_ERR(qp))
 		return qp;
 
@@ -910,7 +928,7 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 	qp->port = 0;
 
 	if (qp_init_attr->qp_type == IB_QPT_XRC_TGT)
-		return ib_create_xrc_qp(qp, qp_init_attr);
+		return ib_create_xrc_qp(qp, qp_init_attr, uobject);
 
 	qp->event_handler = qp_init_attr->event_handler;
 	qp->qp_context = qp_init_attr->qp_context;
@@ -955,7 +973,15 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 
 	return qp;
 }
+EXPORT_SYMBOL(ib_create_qp_user);
+
+struct ib_qp *ib_create_qp(struct ib_pd *pd,
+			   struct ib_qp_init_attr *qp_init_attr)
+{
+	return ib_create_qp_user(pd, qp_init_attr, NULL);
+}
 EXPORT_SYMBOL(ib_create_qp);
+
 
 static const struct {
 	int			valid;
@@ -1508,7 +1534,7 @@ static int __ib_destroy_shared_qp(struct ib_qp *qp)
 	return 0;
 }
 
-int ib_destroy_qp(struct ib_qp *qp)
+int ib_destroy_qp_user(struct ib_qp *qp, struct ib_uobject *uobject)
 {
 	struct ib_pd *pd;
 	struct ib_cq *scq, *rcq;
@@ -1538,7 +1564,7 @@ int ib_destroy_qp(struct ib_qp *qp)
 		rdma_rw_cleanup_mrs(qp);
 
 	rdma_restrack_del(&qp->res);
-	ret = qp->device->destroy_qp(qp);
+	ret = qp->device->destroy_qp(qp, uobject);
 	if (!ret) {
 		if (pd)
 			atomic_dec(&pd->usecnt);
@@ -1558,6 +1584,12 @@ int ib_destroy_qp(struct ib_qp *qp)
 	}
 
 	return ret;
+}
+EXPORT_SYMBOL(ib_destroy_qp_user);
+
+int ib_destroy_qp(struct ib_qp *qp)
+{
+	return ib_destroy_qp_user(qp, NULL);
 }
 EXPORT_SYMBOL(ib_destroy_qp);
 
@@ -1615,14 +1647,15 @@ EXPORT_SYMBOL(ib_resize_cq);
 
 /* Memory regions */
 
-int ib_dereg_mr(struct ib_mr *mr)
+int ib_dereg_mr_user(struct ib_mr *mr,
+		     struct ib_uobject *uobject)
 {
 	struct ib_pd *pd = mr->pd;
 	struct ib_dm *dm = mr->dm;
 	int ret;
 
 	rdma_restrack_del(&mr->res);
-	ret = mr->device->dereg_mr(mr);
+	ret = mr->device->dereg_mr(mr, uobject);
 	if (!ret) {
 		atomic_dec(&pd->usecnt);
 		if (dm)
@@ -1630,6 +1663,12 @@ int ib_dereg_mr(struct ib_mr *mr)
 	}
 
 	return ret;
+}
+EXPORT_SYMBOL(ib_dereg_mr_user);
+
+int ib_dereg_mr(struct ib_mr *mr)
+{
+	return ib_dereg_mr_user(mr, NULL);
 }
 EXPORT_SYMBOL(ib_dereg_mr);
 
@@ -1654,7 +1693,7 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 	if (!pd->device->alloc_mr)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	mr = pd->device->alloc_mr(pd, mr_type, max_num_sg);
+	mr = pd->device->alloc_mr(pd, mr_type, max_num_sg, NULL);
 	if (!IS_ERR(mr)) {
 		mr->device  = pd->device;
 		mr->pd      = pd;
@@ -1840,6 +1879,7 @@ EXPORT_SYMBOL(ib_dealloc_xrcd);
  * @wq_attr: A list of initial attributes required to create the
  * WQ. If WQ creation succeeds, then the attributes are updated to
  * the actual capabilities of the created WQ.
+ * @uobject: User WQ object, NULL if none
  *
  * wq_attr->max_wr and wq_attr->max_sge determine
  * the requested size of the WQ, and set to the actual values allocated
@@ -1848,14 +1888,15 @@ EXPORT_SYMBOL(ib_dealloc_xrcd);
  * at least as large as the requested values.
  */
 struct ib_wq *ib_create_wq(struct ib_pd *pd,
-			   struct ib_wq_init_attr *wq_attr)
+			   struct ib_wq_init_attr *wq_attr,
+			   struct ib_uobject *uobject)
 {
 	struct ib_wq *wq;
 
 	if (!pd->device->create_wq)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	wq = pd->device->create_wq(pd, wq_attr, NULL);
+	wq = pd->device->create_wq(pd, wq_attr, NULL, uobject);
 	if (!IS_ERR(wq)) {
 		wq->event_handler = wq_attr->event_handler;
 		wq->wq_context = wq_attr->wq_context;
@@ -1875,8 +1916,10 @@ EXPORT_SYMBOL(ib_create_wq);
 /**
  * ib_destroy_wq - Destroys the specified WQ.
  * @wq: The WQ to destroy.
+ * @uobject: User WQ object, NULL if none
  */
-int ib_destroy_wq(struct ib_wq *wq)
+int ib_destroy_wq(struct ib_wq *wq,
+		  struct ib_uobject *uobject)
 {
 	int err;
 	struct ib_cq *cq = wq->cq;
@@ -1885,7 +1928,7 @@ int ib_destroy_wq(struct ib_wq *wq)
 	if (atomic_read(&wq->usecnt))
 		return -EBUSY;
 
-	err = wq->device->destroy_wq(wq);
+	err = wq->device->destroy_wq(wq, uobject);
 	if (!err) {
 		atomic_dec(&pd->usecnt);
 		atomic_dec(&cq->usecnt);

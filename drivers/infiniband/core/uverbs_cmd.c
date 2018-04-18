@@ -326,14 +326,13 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	pd = ib_dev->alloc_pd(ib_dev, file->ucontext, &udata);
+	pd = ib_dev->alloc_pd(ib_dev, uobj, &udata);
 	if (IS_ERR(pd)) {
 		ret = PTR_ERR(pd);
 		goto err;
 	}
 
 	pd->device  = ib_dev;
-	pd->uobject = uobj;
 	pd->__internal_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
 
@@ -354,7 +353,7 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	return in_len;
 
 err_copy:
-	ib_dealloc_pd(pd);
+	ib_dealloc_pd_user(pd, uobj);
 
 err:
 	uobj_alloc_abort(uobj);
@@ -645,6 +644,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	struct ib_pd                *pd;
 	struct ib_mr                *mr;
 	int                          ret;
+	struct ib_uobject           *pduobj;
 
 	if (out_len < sizeof resp)
 		return -ENOSPC;
@@ -668,11 +668,12 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	pd = uobj_get_obj_read(pd, UVERBS_OBJECT_PD, cmd.pd_handle, file->ucontext);
-	if (!pd) {
+	pduobj = uobj_get_read(UVERBS_OBJECT_PD, cmd.pd_handle, file->ucontext);
+	if (!pduobj) {
 		ret = -EINVAL;
 		goto err_free;
 	}
+	pd = pduobj->object;
 
 	if (cmd.access_flags & IB_ACCESS_ON_DEMAND) {
 		if (!(pd->device->attrs.device_cap_flags &
@@ -684,7 +685,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	}
 
 	mr = pd->device->reg_user_mr(pd, cmd.start, cmd.length, cmd.hca_va,
-				     cmd.access_flags, &udata);
+				     cmd.access_flags, &udata, uobj);
 	if (IS_ERR(mr)) {
 		ret = PTR_ERR(mr);
 		goto err_put;
@@ -710,17 +711,17 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 		goto err_copy;
 	}
 
-	uobj_put_obj_read(pd);
+	uobj_put_read(pduobj);
 
 	uobj_alloc_commit(uobj);
 
 	return in_len;
 
 err_copy:
-	ib_dereg_mr(mr);
+	ib_dereg_mr_user(mr, uobj);
 
 err_put:
-	uobj_put_obj_read(pd);
+	uobj_put_read(pduobj);
 
 err_free:
 	uobj_alloc_abort(uobj);
@@ -740,6 +741,7 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 	struct ib_pd		    *old_pd;
 	int                          ret;
 	struct ib_uobject	    *uobj;
+	struct ib_uobject	    *pduobj = NULL;
 
 	if (out_len < sizeof(resp))
 		return -ENOSPC;
@@ -774,17 +776,20 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 	}
 
 	if (cmd.flags & IB_MR_REREG_PD) {
-		pd = uobj_get_obj_read(pd, UVERBS_OBJECT_PD, cmd.pd_handle, file->ucontext);
-		if (!pd) {
+		pduobj = uobj_get_read(UVERBS_OBJECT_PD, cmd.pd_handle,
+				       file->ucontext);
+		if (!pduobj) {
 			ret = -EINVAL;
 			goto put_uobjs;
 		}
+		pd = pduobj->object;
 	}
 
 	old_pd = mr->pd;
 	ret = mr->device->rereg_user_mr(mr, cmd.flags, cmd.start,
 					cmd.length, cmd.hca_va,
-					cmd.access_flags, pd, &udata);
+					cmd.access_flags, pd, &udata,
+					uobj);
 	if (!ret) {
 		if (cmd.flags & IB_MR_REREG_PD) {
 			atomic_inc(&pd->usecnt);
@@ -806,7 +811,7 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 
 put_uobj_pd:
 	if (cmd.flags & IB_MR_REREG_PD)
-		uobj_put_obj_read(pd);
+		uobj_put_read(pduobj);
 
 put_uobjs:
 	uobj_put_write(uobj);
@@ -848,6 +853,7 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 	struct ib_mw                  *mw;
 	struct ib_udata		       udata;
 	int                            ret;
+	struct ib_uobject	      *pduobj;
 
 	if (out_len < sizeof(resp))
 		return -ENOSPC;
@@ -859,11 +865,12 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	pd = uobj_get_obj_read(pd, UVERBS_OBJECT_PD, cmd.pd_handle, file->ucontext);
-	if (!pd) {
+	pduobj = uobj_get_read(UVERBS_OBJECT_PD, cmd.pd_handle, file->ucontext);
+	if (!pduobj) {
 		ret = -EINVAL;
 		goto err_free;
 	}
+	pd = pduobj->object;
 
 	ib_uverbs_init_udata(&udata, buf + sizeof(cmd),
 		   u64_to_user_ptr(cmd.response) + sizeof(resp),
@@ -892,7 +899,7 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 		goto err_copy;
 	}
 
-	uobj_put_obj_read(pd);
+	uobj_put_read(pduobj);
 	uobj_alloc_commit(uobj);
 
 	return in_len;
@@ -900,7 +907,7 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 err_copy:
 	uverbs_dealloc_mw(mw);
 err_put:
-	uobj_put_obj_read(pd);
+	uobj_put_read(pduobj);
 err_free:
 	uobj_alloc_abort(uobj);
 	return ret;
@@ -1372,6 +1379,7 @@ static int create_qp(struct ib_uverbs_file *file,
 	int				ret;
 	struct ib_rwq_ind_table *ind_tbl = NULL;
 	bool has_sq = true;
+	struct ib_uobject		*pduobj = NULL;
 
 	if (cmd->qp_type == IB_QPT_RAW_PACKET && !capable(CAP_NET_RAW))
 		return -EPERM;
@@ -1459,11 +1467,13 @@ static int create_qp(struct ib_uverbs_file *file,
 						file->ucontext);
 		if (!ind_tbl)
 			rcq = rcq ?: scq;
-		pd  = uobj_get_obj_read(pd, UVERBS_OBJECT_PD, cmd->pd_handle, file->ucontext);
-		if (!pd || (!scq && has_sq)) {
+		pduobj  = uobj_get_read(UVERBS_OBJECT_PD, cmd->pd_handle,
+					file->ucontext);
+		if (IS_ERR(pduobj) || (!scq && has_sq)) {
 			ret = -EINVAL;
 			goto err_put;
 		}
+		pd = pduobj->object;
 
 		device = pd->device;
 	}
@@ -1523,7 +1533,7 @@ static int create_qp(struct ib_uverbs_file *file,
 		}
 
 	if (cmd->qp_type == IB_QPT_XRC_TGT)
-		qp = ib_create_qp(pd, &attr);
+		qp = ib_create_qp_user(pd, &attr, &obj->uevent.uobject);
 	else
 		qp = _ib_create_qp(device, pd, &attr, uhw,
 				   &obj->uevent.uobject);
@@ -1588,8 +1598,8 @@ static int create_qp(struct ib_uverbs_file *file,
 		uobj_put_read(xrcd_uobj);
 	}
 
-	if (pd)
-		uobj_put_obj_read(pd);
+	if (pduobj)
+		uobj_put_read(pduobj);
 	if (scq)
 		uobj_put_obj_read(scq);
 	if (rcq && rcq != scq)
@@ -1603,13 +1613,13 @@ static int create_qp(struct ib_uverbs_file *file,
 
 	return 0;
 err_cb:
-	ib_destroy_qp(qp);
+	ib_destroy_qp_user(qp, &obj->uevent.uobject);
 
 err_put:
 	if (!IS_ERR(xrcd_uobj))
 		uobj_put_read(xrcd_uobj);
-	if (pd)
-		uobj_put_obj_read(pd);
+	if (pduobj)
+		uobj_put_read(pduobj);
 	if (scq)
 		uobj_put_obj_read(scq);
 	if (rcq && rcq != scq)
@@ -1812,7 +1822,7 @@ ssize_t ib_uverbs_open_qp(struct ib_uverbs_file *file,
 	return in_len;
 
 err_destroy:
-	ib_destroy_qp(qp);
+	ib_destroy_qp_user(qp, &obj->uevent.uobject);
 err_xrcd:
 	uobj_put_read(xrcd_uobj);
 err_put:
@@ -2552,6 +2562,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	struct rdma_ah_attr		attr;
 	int ret;
 	struct ib_udata                   udata;
+	struct ib_uobject		*pduobj;
 
 	if (out_len < sizeof resp)
 		return -ENOSPC;
@@ -2571,11 +2582,12 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	pd = uobj_get_obj_read(pd, UVERBS_OBJECT_PD, cmd.pd_handle, file->ucontext);
-	if (!pd) {
+	pduobj = uobj_get_read(UVERBS_OBJECT_PD, cmd.pd_handle, file->ucontext);
+	if (!pduobj) {
 		ret = -EINVAL;
 		goto err;
 	}
+	pd = pduobj->object;
 
 	attr.type = rdma_ah_find_type(ib_dev, cmd.attr.port_num);
 	rdma_ah_set_make_grd(&attr, false);
@@ -2595,7 +2607,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 		rdma_ah_set_ah_flags(&attr, 0);
 	}
 
-	ah = rdma_create_user_ah(pd, &attr, &udata);
+	ah = rdma_create_user_ah(pd, &attr, &udata, uobj);
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
 		goto err_put;
@@ -2612,7 +2624,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 		goto err_copy;
 	}
 
-	uobj_put_obj_read(pd);
+	uobj_put_read(pduobj);
 	uobj_alloc_commit(uobj);
 
 	return in_len;
@@ -2621,7 +2633,7 @@ err_copy:
 	rdma_destroy_ah(ah);
 
 err_put:
-	uobj_put_obj_read(pd);
+	uobj_put_read(pduobj);
 
 err:
 	uobj_alloc_abort(uobj);
@@ -3003,6 +3015,7 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 	struct ib_wq_init_attr wq_init_attr = {};
 	size_t required_cmd_sz;
 	size_t required_resp_len;
+	struct ib_uobject *pduobj;
 
 	required_cmd_sz = offsetof(typeof(cmd), max_sge) + sizeof(cmd.max_sge);
 	required_resp_len = offsetof(typeof(resp), wqn) + sizeof(resp.wqn);
@@ -3030,11 +3043,13 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	pd  = uobj_get_obj_read(pd, UVERBS_OBJECT_PD, cmd.pd_handle, file->ucontext);
-	if (!pd) {
+	pduobj  = uobj_get_read(UVERBS_OBJECT_PD, cmd.pd_handle,
+				file->ucontext);
+	if (!pduobj) {
 		err = -EINVAL;
 		goto err_uobj;
 	}
+	pd = pduobj->object;
 
 	cq = uobj_get_obj_read(cq, UVERBS_OBJECT_CQ, cmd.cq_handle, file->ucontext);
 	if (!cq) {
@@ -3058,7 +3073,8 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 		err = -EOPNOTSUPP;
 		goto err_put_cq;
 	}
-	wq = pd->device->create_wq(pd, &wq_init_attr, uhw);
+	wq = pd->device->create_wq(pd, &wq_init_attr, uhw,
+				   &obj->uevent.uobject);
 	if (IS_ERR(wq)) {
 		err = PTR_ERR(wq);
 		goto err_put_cq;
@@ -3088,17 +3104,17 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 	if (err)
 		goto err_copy;
 
-	uobj_put_obj_read(pd);
+	uobj_put_read(pduobj);
 	uobj_put_obj_read(cq);
 	uobj_alloc_commit(&obj->uevent.uobject);
 	return 0;
 
 err_copy:
-	ib_destroy_wq(wq);
+	ib_destroy_wq(wq, &obj->uevent.uobject);
 err_put_cq:
 	uobj_put_obj_read(cq);
 err_put_pd:
-	uobj_put_obj_read(pd);
+	uobj_put_read(pduobj);
 err_uobj:
 	uobj_alloc_abort(&obj->uevent.uobject);
 
@@ -3596,6 +3612,7 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 	struct ib_uobject               *uninitialized_var(xrcd_uobj);
 	struct ib_srq_init_attr          attr;
 	int ret;
+	struct ib_uobject		*pduobj;
 
 	obj  = (struct ib_usrq_object *)uobj_alloc(UVERBS_OBJECT_SRQ,
 						   file->ucontext);
@@ -3632,11 +3649,13 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 		}
 	}
 
-	pd  = uobj_get_obj_read(pd, UVERBS_OBJECT_PD, cmd->pd_handle, file->ucontext);
-	if (!pd) {
+	pduobj  = uobj_get_read(UVERBS_OBJECT_PD, cmd->pd_handle,
+				file->ucontext);
+	if (!pduobj) {
 		ret = -EINVAL;
 		goto err_put_cq;
 	}
+	pd = pduobj->object;
 
 	attr.event_handler  = ib_uverbs_srq_event_handler;
 	attr.srq_context    = file;
@@ -3648,7 +3667,7 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 	obj->uevent.events_reported = 0;
 	INIT_LIST_HEAD(&obj->uevent.event_list);
 
-	srq = pd->device->create_srq(pd, &attr, udata);
+	srq = pd->device->create_srq(pd, &attr, udata, &obj->uevent.uobject);
 	if (IS_ERR(srq)) {
 		ret = PTR_ERR(srq);
 		goto err_put;
@@ -3696,7 +3715,7 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 	if (ib_srq_has_cq(cmd->srq_type))
 		uobj_put_obj_read(attr.ext.cq);
 
-	uobj_put_obj_read(pd);
+	uobj_put_read(pduobj);
 	uobj_alloc_commit(&obj->uevent.uobject);
 
 	return 0;
@@ -3705,7 +3724,7 @@ err_copy:
 	ib_destroy_srq(srq);
 
 err_put:
-	uobj_put_obj_read(pd);
+	uobj_put_read(pduobj);
 
 err_put_cq:
 	if (ib_srq_has_cq(cmd->srq_type))

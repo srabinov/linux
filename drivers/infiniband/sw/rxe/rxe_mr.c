@@ -160,7 +160,7 @@ int rxe_mem_init_dma(struct rxe_dev *rxe, struct rxe_pd *pd,
 
 int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
 		      u64 length, u64 iova, int access, struct ib_udata *udata,
-		      struct rxe_mem *mem)
+		      struct rxe_mem *mem, struct ib_uobject *uobject)
 {
 	int			entry;
 	struct rxe_map		**map;
@@ -170,8 +170,9 @@ int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
 	int			num_buf;
 	void			*vaddr;
 	int err;
+	struct ib_ucontext *context = uobject ? uobject->context : NULL;
 
-	umem = ib_umem_get(pd->ibpd.uobject->context, start, length, access, 0);
+	umem = ib_umem_get(context, start, length, access, 0);
 	if (IS_ERR(umem)) {
 		pr_warn("err %d from rxe_umem_get\n",
 			(int)PTR_ERR(umem));

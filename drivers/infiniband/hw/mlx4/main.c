@@ -1323,7 +1323,7 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 }
 
 static struct ib_pd *mlx4_ib_alloc_pd(struct ib_device *ibdev,
-				      struct ib_ucontext *context,
+				      struct ib_uobject *uobject,
 				      struct ib_udata *udata)
 {
 	struct mlx4_ib_pd *pd;
@@ -1339,7 +1339,7 @@ static struct ib_pd *mlx4_ib_alloc_pd(struct ib_device *ibdev,
 		return ERR_PTR(err);
 	}
 
-	if (context)
+	if (uobject)
 		if (ib_copy_to_udata(udata, &pd->pdn, sizeof (__u32))) {
 			mlx4_pd_free(to_mdev(ibdev)->dev, pd->pdn);
 			kfree(pd);
@@ -1348,7 +1348,7 @@ static struct ib_pd *mlx4_ib_alloc_pd(struct ib_device *ibdev,
 	return &pd->ibpd;
 }
 
-static int mlx4_ib_dealloc_pd(struct ib_pd *pd)
+static int mlx4_ib_dealloc_pd(struct ib_pd *pd, struct ib_uobject *uobject)
 {
 	mlx4_pd_free(to_mdev(pd->device)->dev, to_mpd(pd)->pdn);
 	kfree(pd);

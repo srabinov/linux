@@ -958,12 +958,14 @@ int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 		 u8 port, const struct ib_wc *in_wc, const struct ib_grh *in_grh,
 		 const void *in_mad, void *response_mad);
 struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-				struct ib_udata *udata);
+				struct ib_udata *udata,
+				struct ib_uobject *uobject);
 int mlx5_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
 int mlx5_ib_destroy_ah(struct ib_ah *ah);
 struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 				  struct ib_srq_init_attr *init_attr,
-				  struct ib_udata *udata);
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject);
 int mlx5_ib_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		       enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int mlx5_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr);
@@ -972,12 +974,13 @@ int mlx5_ib_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 			  struct ib_recv_wr **bad_wr);
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *init_attr,
-				struct ib_udata *udata);
+				struct ib_udata *udata,
+				struct ib_uobject *uobject);
 int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		      int attr_mask, struct ib_udata *udata);
-int mlx5_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_mask,
-		     struct ib_qp_init_attr *qp_init_attr);
-int mlx5_ib_destroy_qp(struct ib_qp *qp);
+int mlx5_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
+		     int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
+int mlx5_ib_destroy_qp(struct ib_qp *qp, struct ib_uobject *uobject);
 int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		      struct ib_send_wr **bad_wr);
 int mlx5_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
@@ -998,22 +1001,26 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);
 struct ib_mr *mlx5_ib_get_dma_mr(struct ib_pd *pd, int acc);
 struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int access_flags,
-				  struct ib_udata *udata);
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject);
 struct ib_mw *mlx5_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 			       struct ib_udata *udata);
 int mlx5_ib_dealloc_mw(struct ib_mw *mw);
 int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
 		       int page_shift, int flags);
 struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
-					     int access_flags);
+					     int access_flags,
+					     struct ib_uobject *uobject);
 void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *mr);
 int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 			  u64 length, u64 virt_addr, int access_flags,
-			  struct ib_pd *pd, struct ib_udata *udata);
-int mlx5_ib_dereg_mr(struct ib_mr *ibmr);
+			  struct ib_pd *pd, struct ib_udata *udata,
+			  struct ib_uobject *uobject);
+int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_uobject *uobject);
 struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 			       enum ib_mr_type mr_type,
-			       u32 max_num_sg);
+			       u32 max_num_sg,
+			       struct ib_uobject *uobject);
 int mlx5_ib_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		      unsigned int *sg_offset);
 int mlx5_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
@@ -1067,8 +1074,9 @@ int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
 			    struct ib_mr_status *mr_status);
 struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 				struct ib_wq_init_attr *init_attr,
-				struct ib_udata *udata);
-int mlx5_ib_destroy_wq(struct ib_wq *wq);
+				struct ib_udata *udata,
+				struct ib_uobject *uobject);
+int mlx5_ib_destroy_wq(struct ib_wq *wq, struct ib_uobject *uobject);
 int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		      u32 wq_attr_mask, struct ib_udata *udata);
 struct ib_rwq_ind_table *mlx5_ib_create_rwq_ind_table(struct ib_device *device,

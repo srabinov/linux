@@ -51,7 +51,7 @@ atomic_t qps_created;
 atomic_t sw_qps_destroyed;
 
 static void nes_unregister_ofa_device(struct nes_ib_device *nesibdev);
-static int nes_dereg_mr(struct ib_mr *ib_mr);
+static int nes_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject);
 
 /**
  * nes_alloc_mw
@@ -307,7 +307,8 @@ static int alloc_fast_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
  */
 static struct ib_mr *nes_alloc_mr(struct ib_pd *ibpd,
 				  enum ib_mr_type mr_type,
-				  u32 max_num_sg)
+				  u32 max_num_sg,
+				  struct ib_uobject *uobject)
 {
 	struct nes_pd *nespd = to_nespd(ibpd);
 	struct nes_vnic *nesvnic = to_nesvnic(ibpd->device);
@@ -385,7 +386,7 @@ static struct ib_mr *nes_alloc_mr(struct ib_pd *ibpd,
 	return ibmr;
 
 err:
-	nes_dereg_mr(ibmr);
+	nes_dereg_mr(ibmr, uobject);
 
 	return ERR_PTR(-ENOMEM);
 }
@@ -658,7 +659,7 @@ static int nes_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
  * nes_alloc_pd
  */
 static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
-		struct ib_ucontext *context, struct ib_udata *udata)
+		struct ib_uobject *uobject, struct ib_udata *udata)
 {
 	struct nes_pd *nespd;
 	struct nes_vnic *nesvnic = to_nesvnic(ibdev);
@@ -668,6 +669,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 	struct nes_alloc_pd_resp uresp;
 	u32 pd_num = 0;
 	int err;
+	struct ib_ucontext *context = uobject ? uobject->context : NULL;
 
 	nes_debug(NES_DBG_PD, "nesvnic=%p, netdev=%p %s, ibdev=%p, context=%p, netdev refcnt=%u\n",
 			nesvnic, nesdev->netdev[0], nesdev->netdev[0]->name, ibdev, context,
@@ -690,7 +692,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 
 	nespd->pd_id = (pd_num << (PAGE_SHIFT-12)) + nesadapter->base_pd;
 
-	if (context) {
+	if (uobject) {
 		nesucontext = to_nesucontext(context);
 		nespd->mmap_db_index = find_next_zero_bit(nesucontext->allocated_doorbells,
 				NES_MAX_USER_DB_REGIONS, nesucontext->first_free_db);
@@ -724,16 +726,17 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 /**
  * nes_dealloc_pd
  */
-static int nes_dealloc_pd(struct ib_pd *ibpd)
+static int nes_dealloc_pd(struct ib_pd *ibpd, struct ib_uobject *uobject)
 {
 	struct nes_ucontext *nesucontext;
 	struct nes_pd *nespd = to_nespd(ibpd);
 	struct nes_vnic *nesvnic = to_nesvnic(ibpd->device);
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
-	if ((ibpd->uobject) && (ibpd->uobject->context)) {
-		nesucontext = to_nesucontext(ibpd->uobject->context);
+	if (ucontext) {
+		nesucontext = to_nesucontext(ucontext);
 		nes_debug(NES_DBG_PD, "Clearing bit %u from allocated doorbells\n",
 				nespd->mmap_db_index);
 		clear_bit(nespd->mmap_db_index, nesucontext->allocated_doorbells);
@@ -758,7 +761,8 @@ static int nes_dealloc_pd(struct ib_pd *ibpd)
  */
 static struct ib_ah *nes_create_ah(struct ib_pd *pd,
 				   struct rdma_ah_attr *ah_attr,
-				   struct ib_udata *udata)
+				   struct ib_udata *udata,
+				   struct ib_uobject *uobject)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -994,7 +998,8 @@ static void nes_free_qp_mem(struct nes_device *nesdev,
  * nes_create_qp
  */
 static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
-		struct ib_qp_init_attr *init_attr, struct ib_udata *udata)
+		struct ib_qp_init_attr *init_attr, struct ib_udata *udata,
+		struct ib_uobject *uobject)
 {
 	u64 u64temp= 0;
 	u64 u64nesqp = 0;
@@ -1023,6 +1028,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 	u8 sq_encoded_size;
 	u8 rq_encoded_size;
 	/* int counter; */
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
 	if (init_attr->create_flags)
 		return ERR_PTR(-EINVAL);
@@ -1085,9 +1091,9 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 				}
 				if (req.user_qp_buffer)
 					nesqp->nesuqp_addr = req.user_qp_buffer;
-				if ((ibpd->uobject) && (ibpd->uobject->context)) {
+				if (ucontext) {
 					nesqp->user_mode = 1;
-					nes_ucontext = to_nesucontext(ibpd->uobject->context);
+					nes_ucontext = to_nesucontext(ucontext);
 					if (virt_wqs) {
 						err = 1;
 						list_for_each_entry(nespbl, &nes_ucontext->qp_reg_mem_list, list) {
@@ -1108,7 +1114,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 						}
 					}
 
-					nes_ucontext = to_nesucontext(ibpd->uobject->context);
+					nes_ucontext = to_nesucontext(ucontext);
 					nesqp->mmap_sq_db_index =
 						find_next_zero_bit(nes_ucontext->allocated_wqs,
 								   NES_MAX_USER_WQ_REGIONS, nes_ucontext->first_free_wq);
@@ -1276,7 +1282,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 
 			nes_put_cqp_request(nesdev, cqp_request);
 
-			if (ibpd->uobject) {
+			if (ucontext) {
 				uresp.mmap_sq_db_index = nesqp->mmap_sq_db_index;
 				uresp.mmap_rq_db_index = 0;
 				uresp.actual_sq_size = sq_size;
@@ -1351,7 +1357,7 @@ static void nes_clean_cq(struct nes_qp *nesqp, struct nes_cq *nescq)
 /**
  * nes_destroy_qp
  */
-static int nes_destroy_qp(struct ib_qp *ibqp)
+static int nes_destroy_qp(struct ib_qp *ibqp, struct ib_uobject *uobject)
 {
 	struct nes_qp *nesqp = to_nesqp(ibqp);
 	struct nes_ucontext *nes_ucontext;
@@ -2116,7 +2122,8 @@ static struct ib_mr *nes_get_dma_mr(struct ib_pd *pd, int acc)
  * nes_reg_user_mr
  */
 static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
-		u64 virt, int acc, struct ib_udata *udata)
+		u64 virt, int acc, struct ib_udata *udata,
+		struct ib_uobject *uobject)
 {
 	u64 iova_start;
 	__le64 *pbl;
@@ -2152,8 +2159,9 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	u8 single_page = 1;
 	u8 stag_key;
 	int first_page = 1;
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
-	region = ib_umem_get(pd->uobject->context, start, length, acc, 0);
+	region = ib_umem_get(ucontext, start, length, acc, 0);
 	if (IS_ERR(region)) {
 		return (struct ib_mr *)region;
 	}
@@ -2401,7 +2409,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				return ERR_PTR(-ENOMEM);
 			}
 			nesmr->region = region;
-			nes_ucontext = to_nesucontext(pd->uobject->context);
+			nes_ucontext = to_nesucontext(ucontext);
 			pbl_depth = region->length >> 12;
 			pbl_depth += (region->length & (4096-1)) ? 1 : 0;
 			nespbl->pbl_size = pbl_depth*sizeof(u64);
@@ -2471,7 +2479,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 /**
  * nes_dereg_mr
  */
-static int nes_dereg_mr(struct ib_mr *ib_mr)
+static int nes_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject)
 {
 	struct nes_mr *nesmr = to_nesmr(ib_mr);
 	struct nes_vnic *nesvnic = to_nesvnic(ib_mr->device);

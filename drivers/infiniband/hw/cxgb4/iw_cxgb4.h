@@ -1015,7 +1015,8 @@ void c4iw_qp_add_ref(struct ib_qp *qp);
 void c4iw_qp_rem_ref(struct ib_qp *qp);
 struct ib_mr *c4iw_alloc_mr(struct ib_pd *pd,
 			    enum ib_mr_type mr_type,
-			    u32 max_num_sg);
+			    u32 max_num_sg,
+			    struct ib_uobject *uobject);
 int c4iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		   unsigned int *sg_offset);
 int c4iw_dealloc_mw(struct ib_mw *mw);
@@ -1023,10 +1024,11 @@ void c4iw_dealloc(struct uld_ctx *ctx);
 struct ib_mw *c4iw_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 			    struct ib_udata *udata);
 struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
-					   u64 length, u64 virt, int acc,
-					   struct ib_udata *udata);
+			       u64 length, u64 virt, int acc,
+			       struct ib_udata *udata,
+			       struct ib_uobject *uobject);
 struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc);
-int c4iw_dereg_mr(struct ib_mr *ib_mr);
+int c4iw_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject);
 int c4iw_destroy_cq(struct ib_cq *ib_cq);
 struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 			     const struct ib_cq_init_attr *attr,
@@ -1034,10 +1036,11 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 			     struct ib_udata *udata);
 int c4iw_resize_cq(struct ib_cq *cq, int cqe, struct ib_udata *udata);
 int c4iw_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
-int c4iw_destroy_qp(struct ib_qp *ib_qp);
+int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_uobject *uobject);
 struct ib_qp *c4iw_create_qp(struct ib_pd *pd,
 			     struct ib_qp_init_attr *attrs,
-			     struct ib_udata *udata);
+			     struct ib_udata *udata,
+			     struct ib_uobject *uobject);
 int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				 int attr_mask, struct ib_udata *udata);
 int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,

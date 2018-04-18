@@ -204,7 +204,7 @@ static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
 }
 
 static struct ib_pd *rxe_alloc_pd(struct ib_device *dev,
-				  struct ib_ucontext *context,
+				  struct ib_uobject *uobject,
 				  struct ib_udata *udata)
 {
 	struct rxe_dev *rxe = to_rdev(dev);
@@ -214,7 +214,8 @@ static struct ib_pd *rxe_alloc_pd(struct ib_device *dev,
 	return pd ? &pd->ibpd : ERR_PTR(-ENOMEM);
 }
 
-static int rxe_dealloc_pd(struct ib_pd *ibpd)
+static int rxe_dealloc_pd(struct ib_pd *ibpd,
+			  struct ib_uobject *uobject)
 {
 	struct rxe_pd *pd = to_rpd(ibpd);
 
@@ -245,7 +246,8 @@ static int rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
 
 static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
 				   struct rdma_ah_attr *attr,
-				   struct ib_udata *udata)
+				   struct ib_udata *udata,
+				   struct ib_uobject *uobject)
 
 {
 	int err;
@@ -364,13 +366,14 @@ err1:
 
 static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 				     struct ib_srq_init_attr *init,
-				     struct ib_udata *udata)
+				     struct ib_udata *udata,
+				     struct ib_uobject *uobject)
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
 	struct rxe_srq *srq;
-	struct ib_ucontext *context = udata ? ibpd->uobject->context : NULL;
+	struct ib_ucontext *context = uobject ? uobject->context : NULL;
 	struct rxe_create_srq_resp __user *uresp = NULL;
 
 	if (udata) {
@@ -492,7 +495,8 @@ static int rxe_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 				   struct ib_qp_init_attr *init,
-				   struct ib_udata *udata)
+				   struct ib_udata *udata,
+				   struct ib_uobject *uobject)
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
@@ -526,7 +530,7 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 
 	rxe_add_index(qp);
 
-	err = rxe_qp_from_init(rxe, qp, pd, init, uresp, ibpd);
+	err = rxe_qp_from_init(rxe, qp, pd, init, uresp, ibpd, uobject);
 	if (err)
 		goto err3;
 
@@ -572,7 +576,7 @@ static int rxe_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	return 0;
 }
 
-static int rxe_destroy_qp(struct ib_qp *ibqp)
+static int rxe_destroy_qp(struct ib_qp *ibqp, struct ib_uobject *uobject)
 {
 	struct rxe_qp *qp = to_rqp(ibqp);
 
@@ -1029,7 +1033,8 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
 				     u64 start,
 				     u64 length,
 				     u64 iova,
-				     int access, struct ib_udata *udata)
+				     int access, struct ib_udata *udata,
+				     struct ib_uobject *uobject)
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
@@ -1047,7 +1052,7 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
 	rxe_add_ref(pd);
 
 	err = rxe_mem_init_user(rxe, pd, start, length, iova,
-				access, udata, mr);
+				access, udata, mr, uobject);
 	if (err)
 		goto err3;
 
@@ -1061,7 +1066,7 @@ err2:
 	return ERR_PTR(err);
 }
 
-static int rxe_dereg_mr(struct ib_mr *ibmr)
+static int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_uobject *uobject)
 {
 	struct rxe_mem *mr = to_rmr(ibmr);
 
@@ -1074,7 +1079,8 @@ static int rxe_dereg_mr(struct ib_mr *ibmr)
 
 static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd,
 				  enum ib_mr_type mr_type,
-				  u32 max_num_sg)
+				  u32 max_num_sg,
+				  struct ib_uobject *uobject)
 {
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
