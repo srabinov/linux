@@ -71,7 +71,7 @@ struct uverbs_obj_type_class {
 	 *		 is destroyed as well (process termination,
 	 *		 reset flow).
 	 */
-	struct ib_uobject *(*alloc_begin)(const struct uverbs_obj_type *type,
+	struct ib_uobject *(*alloc_begin)(const struct uverbs_object_def *def,
 					  struct ib_ucontext *ucontext);
 	void (*alloc_commit)(struct ib_uobject *uobj);
 	void (*alloc_abort)(struct ib_uobject *uobj);
@@ -124,7 +124,7 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
 					   struct ib_ucontext *ucontext,
 					   int id, bool exclusive);
 void rdma_lookup_put_uobject(struct ib_uobject *uobj, bool exclusive);
-struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_obj_type *type,
+struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_object_def *def,
 					    struct ib_ucontext *ucontext);
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj);
 int __must_check rdma_remove_commit_uobject(struct ib_uobject *uobj);

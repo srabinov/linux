@@ -90,10 +90,11 @@ void uverbs_close_fd(struct file *f);
  * The action will be finalized only when uverbs_finalize_object or
  * uverbs_finalize_objects are called.
  */
-struct ib_uobject *uverbs_get_uobject_from_context(const struct uverbs_obj_type *type_attrs,
-						   struct ib_ucontext *ucontext,
-						   enum uverbs_obj_access access,
-						   int id);
+struct ib_uobject *
+uverbs_get_uobject_from_context(const struct uverbs_object_def *def,
+				struct ib_ucontext *ucontext,
+				enum uverbs_obj_access access,
+				int id);
 int uverbs_finalize_object(struct ib_uobject *uobj,
 			   enum uverbs_obj_access access,
 			   bool commit);
