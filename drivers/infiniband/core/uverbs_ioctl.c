@@ -138,7 +138,7 @@ static int uverbs_process_attr(struct ib_device *ibdev,
 
 		o_attr->id = (int)uattr->data;
 		o_attr->uobject = uverbs_get_uobject_from_context(
-					o_attr->type,
+					o_attr->uobject->def,
 					ucontext,
 					spec->obj.access,
 					o_attr->id);
