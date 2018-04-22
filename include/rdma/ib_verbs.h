@@ -1520,7 +1520,7 @@ struct ib_uobject {
 	atomic_t		usecnt;		/* protects exclusive access */
 	struct rcu_head		rcu;		/* kfree_rcu() overhead */
 
-	const struct uverbs_obj_type *type;
+	const struct uverbs_object_def *def;
 };
 
 struct ib_uobject_file {

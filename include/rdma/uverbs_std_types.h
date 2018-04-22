@@ -56,7 +56,9 @@ static inline struct ib_uobject *__uobj_get(const struct uverbs_obj_type *type,
 	return rdma_lookup_get_uobject(type, ucontext, id, write);
 }
 
-#define uobj_get_type(_object) UVERBS_OBJECT(_object).type_attrs
+#define uobj_get_def(_id) UVERBS_OBJECT(_id)
+
+#define uobj_get_type(_id) uobj_get_def(_id).type_attrs
 
 #define uobj_get_read(_type, _id, _ucontext)				\
 	 __uobj_get(uobj_get_type(_type), false, _ucontext, _id)
@@ -101,14 +103,15 @@ static inline void uobj_alloc_abort(struct ib_uobject *uobj)
 	rdma_alloc_abort_uobject(uobj);
 }
 
-static inline struct ib_uobject *__uobj_alloc(const struct uverbs_obj_type *type,
-					      struct ib_ucontext *ucontext)
+static inline
+struct ib_uobject *__uobj_alloc(const struct uverbs_object_def *def,
+				struct ib_ucontext *ucontext)
 {
-	return rdma_alloc_begin_uobject(type, ucontext);
+	return rdma_alloc_begin_uobject(def, ucontext);
 }
 
 #define uobj_alloc(_type, ucontext)	\
-	__uobj_alloc(uobj_get_type(_type), ucontext)
+	__uobj_alloc(&uobj_get_def(_type), ucontext)
 
 #endif
 

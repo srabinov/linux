@@ -96,7 +96,7 @@ static void uverbs_uobject_free(struct kref *ref)
 	struct ib_uobject *uobj =
 		container_of(ref, struct ib_uobject, ref);
 
-	if (uobj->type->type_class->needs_kfree_rcu)
+	if (uobj->def->type_attrs->type_class->needs_kfree_rcu)
 		kfree_rcu(uobj, rcu);
 	else
 		kfree(uobj);
@@ -129,9 +129,10 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj, bool exclusive)
 }
 
 static struct ib_uobject *alloc_uobj(struct ib_ucontext *context,
-				     const struct uverbs_obj_type *type)
+				     const struct uverbs_object_def *def)
 {
-	struct ib_uobject *uobj = kzalloc(type->obj_size, GFP_KERNEL);
+	struct ib_uobject *uobj =
+		kzalloc(def->type_attrs->obj_size, GFP_KERNEL);
 
 	if (!uobj)
 		return ERR_PTR(-ENOMEM);
@@ -140,7 +141,7 @@ static struct ib_uobject *alloc_uobj(struct ib_ucontext *context,
 	 * The object is added to the list in the commit stage.
 	 */
 	uobj->context = context;
-	uobj->type = type;
+	uobj->def = def;
 	/*
 	 * Allocated objects start out as write locked to deny any other
 	 * syscalls from accessing them until they are committed. See
@@ -257,7 +258,7 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
 	if (IS_ERR(uobj))
 		return uobj;
 
-	if (uobj->type != type) {
+	if (uobj->def->type_attrs != type) {
 		ret = -EINVAL;
 		goto free;
 	}
@@ -271,18 +272,19 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_obj_type *type,
 
 	return uobj;
 free:
-	uobj->type->type_class->lookup_put(uobj, exclusive);
+	uobj->def->type_attrs->type_class->lookup_put(uobj, exclusive);
 	uverbs_uobject_put(uobj);
 	return ERR_PTR(ret);
 }
 
-static struct ib_uobject *alloc_begin_idr_uobject(const struct uverbs_obj_type *type,
-						  struct ib_ucontext *ucontext)
+static struct ib_uobject *
+alloc_begin_idr_uobject(const struct uverbs_object_def *def,
+			struct ib_ucontext *ucontext)
 {
 	int ret;
 	struct ib_uobject *uobj;
 
-	uobj = alloc_uobj(ucontext, type);
+	uobj = alloc_uobj(ucontext, def);
 	if (IS_ERR(uobj))
 		return uobj;
 
@@ -304,11 +306,12 @@ uobj_put:
 	return ERR_PTR(ret);
 }
 
-static struct ib_uobject *alloc_begin_fd_uobject(const struct uverbs_obj_type *type,
-						 struct ib_ucontext *ucontext)
+static struct ib_uobject *
+alloc_begin_fd_uobject(const struct uverbs_object_def *def,
+		       struct ib_ucontext *ucontext)
 {
 	const struct uverbs_obj_fd_type *fd_type =
-		container_of(type, struct uverbs_obj_fd_type, type);
+		container_of(def->type_attrs, struct uverbs_obj_fd_type, type);
 	int new_fd;
 	struct ib_uobject *uobj;
 	struct ib_uobject_file *uobj_file;
@@ -318,7 +321,7 @@ static struct ib_uobject *alloc_begin_fd_uobject(const struct uverbs_obj_type *t
 	if (new_fd < 0)
 		return ERR_PTR(new_fd);
 
-	uobj = alloc_uobj(ucontext, type);
+	uobj = alloc_uobj(ucontext, def);
 	if (IS_ERR(uobj)) {
 		put_unused_fd(new_fd);
 		return uobj;
@@ -344,17 +347,18 @@ static struct ib_uobject *alloc_begin_fd_uobject(const struct uverbs_obj_type *t
 	return uobj;
 }
 
-struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_obj_type *type,
-					    struct ib_ucontext *ucontext)
+struct ib_uobject *
+rdma_alloc_begin_uobject(const struct uverbs_object_def *def,
+			 struct ib_ucontext *ucontext)
 {
-	return type->type_class->alloc_begin(type, ucontext);
+	return def->type_attrs->type_class->alloc_begin(def, ucontext);
 }
 
 static int __must_check remove_commit_idr_uobject(struct ib_uobject *uobj,
 						  enum rdma_remove_reason why)
 {
 	const struct uverbs_obj_idr_type *idr_type =
-		container_of(uobj->type, struct uverbs_obj_idr_type,
+		container_of(uobj->def->type_attrs, struct uverbs_obj_idr_type,
 			     type);
 	int ret = idr_type->destroy_object(uobj, why);
 
@@ -387,8 +391,9 @@ static void alloc_abort_fd_uobject(struct ib_uobject *uobj)
 static int __must_check remove_commit_fd_uobject(struct ib_uobject *uobj,
 						 enum rdma_remove_reason why)
 {
+	const struct uverbs_obj_type *type = uobj->def->type_attrs;
 	const struct uverbs_obj_fd_type *fd_type =
-		container_of(uobj->type, struct uverbs_obj_fd_type, type);
+		container_of(type, struct uverbs_obj_fd_type, type);
 	struct ib_uobject_file *uobj_file =
 		container_of(uobj, struct ib_uobject_file, uobj);
 	int ret = fd_type->context_closed(uobj_file, why);
@@ -421,11 +426,11 @@ static int __must_check _rdma_remove_commit_uobject(struct ib_uobject *uobj,
 	int ret;
 	struct ib_ucontext *ucontext = uobj->context;
 
-	ret = uobj->type->type_class->remove_commit(uobj, why);
+	ret = uobj->def->type_attrs->type_class->remove_commit(uobj, why);
 	if (ret && why == RDMA_REMOVE_DESTROY) {
 		/* We couldn't remove the object, so just unlock the uobject */
 		atomic_set(&uobj->usecnt, 0);
-		uobj->type->type_class->lookup_put(uobj, true);
+		uobj->def->type_attrs->type_class->lookup_put(uobj, true);
 	} else {
 		mutex_lock(&ucontext->uobjects_lock);
 		list_del(&uobj->list);
@@ -481,12 +486,13 @@ int rdma_explicit_destroy(struct ib_uobject *uobject)
 		return 0;
 	}
 	assert_uverbs_usecnt(uobject, true);
-	ret = uobject->type->type_class->remove_commit(uobject,
+	ret = uobject->def->type_attrs->type_class->remove_commit(uobject,
 						       RDMA_REMOVE_DESTROY);
 	if (ret)
 		goto out;
 
-	uobject->type = &null_obj_type;
+	((struct uverbs_object_def *)(uobject->def))->type_attrs =
+		&null_obj_type;
 
 out:
 	up_read(&ucontext->cleanup_rwsem);
@@ -524,7 +530,7 @@ int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 		int ret;
 
 		WARN(true, "ib_uverbs: Cleanup is running while allocating an uobject\n");
-		ret = uobj->type->type_class->remove_commit(uobj,
+		ret = uobj->def->type_attrs->type_class->remove_commit(uobj,
 							    RDMA_REMOVE_DURING_CLEANUP);
 		if (ret)
 			pr_warn("ib_uverbs: cleanup of idr object %d failed\n",
@@ -540,7 +546,7 @@ int rdma_alloc_commit_uobject(struct ib_uobject *uobj)
 	list_add(&uobj->list, &uobj->context->uobjects);
 	mutex_unlock(&uobj->context->uobjects_lock);
 
-	uobj->type->type_class->alloc_commit(uobj);
+	uobj->def->type_attrs->type_class->alloc_commit(uobj);
 	up_read(&uobj->context->cleanup_rwsem);
 
 	return 0;
@@ -556,7 +562,7 @@ static void alloc_abort_idr_uobject(struct ib_uobject *uobj)
 
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj)
 {
-	uobj->type->type_class->alloc_abort(uobj);
+	uobj->def->type_attrs->type_class->alloc_abort(uobj);
 }
 
 static void lookup_put_idr_uobject(struct ib_uobject *uobj, bool exclusive)
@@ -575,7 +581,7 @@ static void lookup_put_fd_uobject(struct ib_uobject *uobj, bool exclusive)
 void rdma_lookup_put_uobject(struct ib_uobject *uobj, bool exclusive)
 {
 	assert_uverbs_usecnt(uobj, exclusive);
-	uobj->type->type_class->lookup_put(uobj, exclusive);
+	uobj->def->type_attrs->type_class->lookup_put(uobj, exclusive);
 	/*
 	 * In order to unlock an object, either decrease its usecnt for
 	 * read access or zero it in case of exclusive access. See
@@ -675,7 +681,11 @@ void uverbs_cleanup_ucontext(struct ib_ucontext *ucontext, bool device_removed)
 		mutex_lock(&ucontext->uobjects_lock);
 		list_for_each_entry_safe(obj, next_obj, &ucontext->uobjects,
 					 list) {
-			if (obj->type->destroy_order == cur_order) {
+			const struct uverbs_obj_type *type =
+				obj->def->type_attrs;
+			const struct uverbs_obj_type_class *class =
+				type->type_class;
+			if (type->destroy_order == cur_order) {
 				int ret;
 
 				/*
@@ -683,8 +693,7 @@ void uverbs_cleanup_ucontext(struct ib_ucontext *ucontext, bool device_removed)
 				 * racing with a lookup_get.
 				 */
 				WARN_ON(uverbs_try_lock_object(obj, true));
-				ret = obj->type->type_class->remove_commit(obj,
-									   reason);
+				ret = class->remove_commit(obj, reason);
 				list_del(&obj->list);
 				if (ret)
 					pr_warn("ib_uverbs: failed to remove uobject id %d order %u\n",
@@ -693,7 +702,7 @@ void uverbs_cleanup_ucontext(struct ib_ucontext *ucontext, bool device_removed)
 				uverbs_uobject_put(obj);
 			} else {
 				next_order = min(next_order,
-						 obj->type->destroy_order);
+						 type->destroy_order);
 			}
 		}
 		mutex_unlock(&ucontext->uobjects_lock);
@@ -720,19 +729,22 @@ const struct uverbs_obj_type_class uverbs_fd_class = {
 	.needs_kfree_rcu = false,
 };
 
-struct ib_uobject *uverbs_get_uobject_from_context(const struct uverbs_obj_type *type_attrs,
-						   struct ib_ucontext *ucontext,
-						   enum uverbs_obj_access access,
-						   int id)
+struct ib_uobject *
+uverbs_get_uobject_from_context(const struct uverbs_object_def *def,
+				struct ib_ucontext *ucontext,
+				enum uverbs_obj_access access,
+				int id)
 {
 	switch (access) {
 	case UVERBS_ACCESS_READ:
-		return rdma_lookup_get_uobject(type_attrs, ucontext, id, false);
+		return rdma_lookup_get_uobject(def->type_attrs, ucontext, id,
+					       false);
 	case UVERBS_ACCESS_DESTROY:
 	case UVERBS_ACCESS_WRITE:
-		return rdma_lookup_get_uobject(type_attrs, ucontext, id, true);
+		return rdma_lookup_get_uobject(def->type_attrs, ucontext, id,
+					       true);
 	case UVERBS_ACCESS_NEW:
-		return rdma_alloc_begin_uobject(type_attrs, ucontext);
+		return rdma_alloc_begin_uobject(def, ucontext);
 	default:
 		WARN_ON(true);
 		return ERR_PTR(-EOPNOTSUPP);
