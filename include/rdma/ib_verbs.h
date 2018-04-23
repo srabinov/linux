@@ -1568,6 +1568,11 @@ struct ib_ah {
 	enum rdma_ah_attr_type	type;
 };
 
+struct ib_uah_object {
+	struct ib_uobject	uobject;
+	struct ib_uobject      *pduobj;
+};
+
 typedef void (*ib_comp_handler)(struct ib_cq *cq, void *cq_context);
 
 enum ib_poll_context {
@@ -3128,6 +3133,13 @@ int rdma_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
  *   handle.
  */
 int rdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
+
+/**
+ * rdma_destroy_ah_user - Destroys an address handle.
+ * @ah: The address handle to destroy.
+ * @uobject: User AH object, NULL if none.
+ */
+int rdma_destroy_ah_user(struct ib_ah *ah, struct ib_uobject *uobject);
 
 /**
  * rdma_destroy_ah - Destroys an address handle.
