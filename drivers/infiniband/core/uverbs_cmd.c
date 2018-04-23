@@ -858,7 +858,7 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 {
 	struct ib_uverbs_alloc_mw      cmd;
 	struct ib_uverbs_alloc_mw_resp resp;
-	struct ib_uobject             *uobj;
+	struct ib_umw_object          *umwobj;
 	struct ib_pd                  *pd;
 	struct ib_mw                  *mw;
 	struct ib_udata		       udata;
@@ -871,15 +871,17 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 	if (copy_from_user(&cmd, buf, sizeof(cmd)))
 		return -EFAULT;
 
-	uobj  = uobj_alloc(UVERBS_OBJECT_MW, file->ucontext);
-	if (IS_ERR(uobj))
-		return PTR_ERR(uobj);
+	umwobj = (struct ib_umw_object *)
+		uobj_alloc(UVERBS_OBJECT_MW, file->ucontext);
+	if (IS_ERR(umwobj))
+		return PTR_ERR(umwobj);
 
 	pduobj = uobj_get_read(UVERBS_OBJECT_PD, cmd.pd_handle, file->ucontext);
 	if (!pduobj) {
 		ret = -EINVAL;
 		goto err_free;
 	}
+	umwobj->pduobj = pduobj;
 	pd = pduobj->object;
 
 	ib_uverbs_init_udata(&udata, buf + sizeof(cmd),
@@ -895,14 +897,15 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 
 	mw->device  = pd->device;
 	mw->pd      = pd;
-	mw->uobject = uobj;
+	mw->uobject = &umwobj->uobject;
 	atomic_inc(&pd->usecnt);
+	atomic_inc(&pduobj->obj_usecnt);
 
-	uobj->object = mw;
+	umwobj->uobject.object = mw;
 
 	memset(&resp, 0, sizeof(resp));
 	resp.rkey      = mw->rkey;
-	resp.mw_handle = uobj->id;
+	resp.mw_handle = umwobj->uobject.id;
 
 	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof(resp))) {
 		ret = -EFAULT;
@@ -910,16 +913,16 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 	}
 
 	uobj_put_read(pduobj);
-	uobj_alloc_commit(uobj);
+	uobj_alloc_commit(&umwobj->uobject);
 
 	return in_len;
 
 err_copy:
-	uverbs_dealloc_mw(mw);
+	uverbs_dealloc_mw(mw, &umwobj->uobject);
 err_put:
 	uobj_put_read(pduobj);
 err_free:
-	uobj_alloc_abort(uobj);
+	uobj_alloc_abort(&umwobj->uobject);
 	return ret;
 }
 

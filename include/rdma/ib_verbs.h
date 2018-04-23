@@ -1820,6 +1820,11 @@ struct ib_mw {
 	enum ib_mw_type         type;
 };
 
+struct ib_umw_object {
+	struct ib_uobject       uobject;
+	struct ib_uobject      *pduobj;
+};
+
 struct ib_fmr {
 	struct ib_device	*device;
 	struct ib_pd		*pd;

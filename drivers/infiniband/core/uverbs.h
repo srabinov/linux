@@ -233,7 +233,7 @@ void ib_uverbs_event_handler(struct ib_event_handler *handler,
 int ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev, struct ib_xrcd *xrcd,
 			   enum rdma_remove_reason why);
 
-int uverbs_dealloc_mw(struct ib_mw *mw);
+int uverbs_dealloc_mw(struct ib_mw *mw, struct ib_uobject *uobject);
 void ib_uverbs_detach_umcast(struct ib_qp *qp,
 			     struct ib_uqp_object *uobj);
 

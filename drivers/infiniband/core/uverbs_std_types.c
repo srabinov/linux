@@ -63,7 +63,7 @@ static int uverbs_free_flow(struct ib_uobject *uobject,
 static int uverbs_free_mw(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
-	return uverbs_dealloc_mw((struct ib_mw *)uobject->object);
+	return uverbs_dealloc_mw((struct ib_mw *)uobject->object, uobject);
 }
 
 static int uverbs_free_qp(struct ib_uobject *uobject,
