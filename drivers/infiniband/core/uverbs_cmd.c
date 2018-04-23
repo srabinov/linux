@@ -633,6 +633,96 @@ int ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev,
 	return ret;
 }
 
+ssize_t ib_uverbs_export_to_fd(struct ib_uverbs_file *file,
+			       struct ib_device *ib_dev,
+			       const char __user *buf, int in_len,
+			       int out_len)
+{
+	struct ib_uverbs_device *dev = file->device;
+	struct ib_uverbs_export_to_fd_resp resp;
+	struct ib_uverbs_export_to_fd cmd;
+	struct ib_uobject *src_uobj = NULL;
+	struct ib_uobject *dst_uobj = NULL;
+	struct ib_uverbs_file *dst_file;
+	atomic_t *usecnt = NULL;
+	struct file *filep;
+	int ret = -EFAULT;
+
+	if (out_len < sizeof(resp))
+		return -ENOSPC;
+
+	if (copy_from_user(&cmd, buf, sizeof(cmd)))
+		return -EFAULT;
+
+	mutex_lock(&dev->lists_mutex);
+
+	filep = fget(cmd.fd);
+	if (!filep) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	/* check uverbs ops exist */
+	if (filep->f_op != file->filp->f_op) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	dst_file = filep->private_data;
+
+	/* check that files point to same device */
+	if (dst_file->device != dev) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	/* for every supported object add case below */
+	switch (cmd.type) {
+	default:
+		pr_warn("%s: invalid obj type %d\n", __func__, cmd.type);
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	atomic_inc(usecnt);
+	dst_uobj->object = src_uobj->object;
+	uobj_alloc_commit(dst_uobj);
+	uobj_put_read(src_uobj);
+	fput(filep);
+	mutex_unlock(&dev->lists_mutex);
+
+	memset(&resp, 0, sizeof(resp));
+	resp.handle = dst_uobj->id;
+
+	if (copy_to_user((void __user *) (unsigned long) cmd.response,
+			 &resp, sizeof(resp))) {
+		ret = -EFAULT;
+		goto usecnt;
+	}
+
+	return in_len;
+
+usecnt:
+	if (atomic_dec_and_test(usecnt)) {
+		/* for every supported object add case below */
+		switch (cmd.type) {
+		default:
+			pr_warn("%s: invalid obj type 2 %d\n", __func__,
+				cmd.type);
+			break;
+		}
+	}
+uobj:
+	if (dst_uobj)
+		uobj_alloc_abort(dst_uobj);
+	if (src_uobj)
+		uobj_put_read(src_uobj);
+	fput(filep);
+unlock:
+	mutex_unlock(&dev->lists_mutex);
+	return ret;
+}
+
 ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 			 struct ib_device *ib_dev,
 			 const char __user *buf, int in_len,
