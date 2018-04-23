@@ -192,7 +192,8 @@ struct ib_uqp_object {
 };
 
 struct ib_uwq_object {
-	struct ib_uevent_object	uevent;
+	struct ib_uevent_object		uevent;
+	struct ib_uobject	       *pduobj;
 };
 
 struct ib_ucq_object {

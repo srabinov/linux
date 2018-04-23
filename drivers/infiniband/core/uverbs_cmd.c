@@ -3067,6 +3067,7 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 		err = -EINVAL;
 		goto err_uobj;
 	}
+	obj->pduobj = pduobj;
 	pd = pduobj->object;
 
 	cq = uobj_get_obj_read(cq, UVERBS_OBJECT_CQ, cmd.cq_handle, file->ucontext);
@@ -3106,6 +3107,7 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 	wq->device = pd->device;
 	wq->wq_context = wq_init_attr.wq_context;
 	atomic_set(&wq->usecnt, 0);
+	atomic_inc(&pduobj->obj_usecnt);
 	atomic_inc(&pd->usecnt);
 	atomic_inc(&cq->usecnt);
 	wq->uobject = &obj->uevent.uobject;
