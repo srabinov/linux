@@ -585,7 +585,8 @@ int bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_uobject *uobject)
 
 struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
 			       struct ib_uobject *uobject,
-			       struct ib_udata *udata)
+			       struct ib_udata *udata,
+			       struct ib_pd *ibpd)
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
@@ -594,6 +595,10 @@ struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
 						      ib_uctx);
 	struct bnxt_re_pd *pd;
 	int rc;
+
+	/* share of pd is not supported for this HW! */
+	if (ibpd)
+		return ERR_PTR(-EINVAL);
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)

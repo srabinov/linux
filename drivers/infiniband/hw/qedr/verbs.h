@@ -48,7 +48,8 @@ int qedr_dealloc_ucontext(struct ib_ucontext *);
 
 int qedr_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
 struct ib_pd *qedr_alloc_pd(struct ib_device *,
-			    struct ib_uobject *, struct ib_udata *);
+			    struct ib_uobject *, struct ib_udata *,
+			    struct ib_pd *);
 int qedr_dealloc_pd(struct ib_pd *pd, struct ib_uobject *uobject);
 
 struct ib_cq *qedr_create_cq(struct ib_device *ibdev,

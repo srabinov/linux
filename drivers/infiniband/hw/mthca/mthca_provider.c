@@ -375,10 +375,15 @@ static int mthca_mmap_uar(struct ib_ucontext *context,
 
 static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev,
 				    struct ib_uobject *uobject,
-				    struct ib_udata *udata)
+				    struct ib_udata *udata,
+				    struct ib_pd *ibpd)
 {
 	struct mthca_pd *pd;
 	int err;
+
+	/* share of pd is not supported for this HW! */
+	if (ibpd)
+		return ERR_PTR(-EINVAL);
 
 	pd = kmalloc(sizeof *pd, GFP_KERNEL);
 	if (!pd)

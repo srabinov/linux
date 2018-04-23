@@ -53,7 +53,8 @@ int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 				u16 *pkey);
 struct ib_pd *usnic_ib_alloc_pd(struct ib_device *ibdev,
 				struct ib_uobject *uobject,
-				struct ib_udata *udata);
+				struct ib_udata *udata,
+				struct ib_pd *ibpd);
 int usnic_ib_dealloc_pd(struct ib_pd *pd, struct ib_uobject *uobject);
 struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 				 struct ib_qp_init_attr *init_attr,
