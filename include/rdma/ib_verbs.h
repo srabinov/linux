@@ -1518,6 +1518,7 @@ struct ib_uobject {
 	int			id;		/* index into kernel idr */
 	struct kref		ref;
 	atomic_t		usecnt;		/* protects exclusive access */
+	atomic_t		obj_usecnt;	/* object use within context */
 	struct rcu_head		rcu;		/* kfree_rcu() overhead */
 
 	const struct uverbs_object_def *def;
