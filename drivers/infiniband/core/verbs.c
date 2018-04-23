@@ -52,6 +52,7 @@
 #include <rdma/rw.h>
 
 #include "core_priv.h"
+#include "uverbs.h"
 
 static int ib_resolve_eth_dmac(struct ib_device *device,
 			       struct rdma_ah_attr *ah_attr);
@@ -1569,7 +1570,17 @@ int ib_destroy_qp_user(struct ib_qp *qp, struct ib_uobject *uobject)
 	struct ib_srq *srq;
 	struct ib_rwq_ind_table *ind_tbl;
 	struct ib_qp_security *sec;
-	int ret;
+	int ret, val;
+	struct ib_uqp_object *uqpobj = NULL;
+	struct ib_uevent_object *uevent = NULL;
+	struct ib_uobject *pduobj;
+
+	if (uobject)
+		uevent = container_of(uobject, struct ib_uevent_object,
+				      uobject);
+
+	if (uevent)
+		uqpobj = container_of(uevent, struct ib_uqp_object, uevent);
 
 	WARN_ON_ONCE(qp->mrs_used > 0);
 
@@ -1594,8 +1605,15 @@ int ib_destroy_qp_user(struct ib_qp *qp, struct ib_uobject *uobject)
 	rdma_restrack_del(&qp->res);
 	ret = qp->device->destroy_qp(qp, uobject);
 	if (!ret) {
-		if (pd)
+		if (pd) {
 			atomic_dec(&pd->usecnt);
+
+			if (uqpobj) {
+				pduobj = uqpobj->pduobj;
+				val = atomic_dec_return(&pduobj->obj_usecnt);
+				WARN_ONCE(val < 2, "usecnt = %d", val);
+			}
+		}
 		if (scq)
 			atomic_dec(&scq->usecnt);
 		if (rcq)
