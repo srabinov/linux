@@ -334,7 +334,8 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 
 	pd->device  = ib_dev;
 	pd->__internal_mr = NULL;
-	atomic_set(&pd->usecnt, 0);
+	/* ib_XXX & context that use this ib_pd. */
+	atomic_set(&pd->usecnt, 1);
 
 	uobj->object = pd;
 	memset(&resp, 0, sizeof resp);

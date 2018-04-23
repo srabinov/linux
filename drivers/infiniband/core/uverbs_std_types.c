@@ -167,11 +167,17 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
 	struct ib_pd *pd = uobject->object;
+	int usecnt;
 
-	if (why == RDMA_REMOVE_DESTROY && atomic_read(&pd->usecnt))
-		return -EBUSY;
+	if (atomic_dec_and_test(&pd->usecnt)) {
+		/* no more context & ib_XXX objects use this ib_pd. */
+		ib_dealloc_pd_user((struct ib_pd *)uobject->object, uobject);
+		return 0;
+	}
 
-	ib_dealloc_pd_user((struct ib_pd *)uobject->object, uobject);
+	usecnt = atomic_read(&pd->usecnt);
+	WARN_ONCE(usecnt < 0, "usecnt = %d", usecnt);
+
 	return 0;
 }
 
