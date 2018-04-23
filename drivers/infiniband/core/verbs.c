@@ -729,6 +729,11 @@ EXPORT_SYMBOL(rdma_destroy_ah);
 
 /* Shared receive queues */
 
+/*
+ * NOTE:
+ * This function should never be called from uverbs. It is for kernel only
+ * SRQ objects.
+ */
 struct ib_srq *ib_create_srq(struct ib_pd *pd,
 			     struct ib_srq_init_attr *srq_init_attr)
 {
@@ -754,6 +759,7 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 			srq->ext.xrc.xrcd = srq_init_attr->ext.xrc.xrcd;
 			atomic_inc(&srq->ext.xrc.xrcd->usecnt);
 		}
+		/* See above note why we do not inc SRQ uobject usecnt here. */
 		atomic_inc(&pd->usecnt);
 		atomic_set(&srq->usecnt, 0);
 	}
@@ -780,13 +786,22 @@ int ib_query_srq(struct ib_srq *srq,
 }
 EXPORT_SYMBOL(ib_query_srq);
 
-int ib_destroy_srq(struct ib_srq *srq)
+int ib_destroy_srq_user(struct ib_srq *srq, struct ib_uobject *uobject)
 {
 	struct ib_pd *pd;
 	enum ib_srq_type srq_type;
 	struct ib_xrcd *uninitialized_var(xrcd);
 	struct ib_cq *uninitialized_var(cq);
-	int ret;
+	int ret, val;
+	struct ib_usrq_object *usrqobj = NULL;
+	struct ib_uevent_object *uevent = NULL;
+
+	if (uobject)
+		uevent = container_of(uobject, struct ib_uevent_object,
+				      uobject);
+
+	if (uevent)
+		usrqobj = container_of(uevent, struct ib_usrq_object, uevent);
 
 	if (atomic_read(&srq->usecnt))
 		return -EBUSY;
@@ -801,6 +816,12 @@ int ib_destroy_srq(struct ib_srq *srq)
 	ret = srq->device->destroy_srq(srq);
 	if (!ret) {
 		atomic_dec(&pd->usecnt);
+
+		if (usrqobj) {
+			val = atomic_dec_return(&usrqobj->pduobj->obj_usecnt);
+			WARN_ONCE(val < 2, "usecnt = %d", val);
+		}
+
 		if (srq_type == IB_SRQT_XRC)
 			atomic_dec(&xrcd->usecnt);
 		if (ib_srq_has_cq(srq_type))
@@ -808,6 +829,12 @@ int ib_destroy_srq(struct ib_srq *srq)
 	}
 
 	return ret;
+}
+EXPORT_SYMBOL(ib_destroy_srq_user);
+
+int ib_destroy_srq(struct ib_srq *srq)
+{
+	return ib_destroy_srq_user(srq, NULL);
 }
 EXPORT_SYMBOL(ib_destroy_srq);
 
