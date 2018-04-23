@@ -640,7 +640,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	struct ib_uverbs_reg_mr      cmd;
 	struct ib_uverbs_reg_mr_resp resp;
 	struct ib_udata              udata;
-	struct ib_uobject           *uobj;
+	struct ib_umr_object        *umrobj;
 	struct ib_pd                *pd;
 	struct ib_mr                *mr;
 	int                          ret;
@@ -664,15 +664,17 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	if (ret)
 		return ret;
 
-	uobj  = uobj_alloc(UVERBS_OBJECT_MR, file->ucontext);
-	if (IS_ERR(uobj))
-		return PTR_ERR(uobj);
+	umrobj  = (struct ib_umr_object *)uobj_alloc(UVERBS_OBJECT_MR,
+						     file->ucontext);
+	if (IS_ERR(umrobj))
+		return PTR_ERR(umrobj);
 
 	pduobj = uobj_get_read(UVERBS_OBJECT_PD, cmd.pd_handle, file->ucontext);
 	if (!pduobj) {
 		ret = -EINVAL;
 		goto err_free;
 	}
+	umrobj->pduobj = pduobj;
 	pd = pduobj->object;
 
 	if (cmd.access_flags & IB_ACCESS_ON_DEMAND) {
@@ -685,7 +687,8 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	}
 
 	mr = pd->device->reg_user_mr(pd, cmd.start, cmd.length, cmd.hca_va,
-				     cmd.access_flags, &udata, uobj);
+				     cmd.access_flags, &udata,
+				     &umrobj->uobject);
 	if (IS_ERR(mr)) {
 		ret = PTR_ERR(mr);
 		goto err_put;
@@ -693,18 +696,19 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 
 	mr->device  = pd->device;
 	mr->pd      = pd;
-	mr->uobject = uobj;
+	mr->uobject = &umrobj->uobject;
 	atomic_inc(&pd->usecnt);
+	atomic_inc(&pduobj->obj_usecnt);
 	mr->res.type = RDMA_RESTRACK_MR;
 	mr->res.user = true;
 	rdma_restrack_add(&mr->res);
 
-	uobj->object = mr;
+	umrobj->uobject.object = mr;
 
 	memset(&resp, 0, sizeof resp);
 	resp.lkey      = mr->lkey;
 	resp.rkey      = mr->rkey;
-	resp.mr_handle = uobj->id;
+	resp.mr_handle = umrobj->uobject.id;
 
 	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
 		ret = -EFAULT;
@@ -713,18 +717,18 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 
 	uobj_put_read(pduobj);
 
-	uobj_alloc_commit(uobj);
+	uobj_alloc_commit(&umrobj->uobject);
 
 	return in_len;
 
 err_copy:
-	ib_dereg_mr_user(mr, uobj);
+	ib_dereg_mr_user(mr, &umrobj->uobject);
 
 err_put:
 	uobj_put_read(pduobj);
 
 err_free:
-	uobj_alloc_abort(uobj);
+	uobj_alloc_abort(&umrobj->uobject);
 	return ret;
 }
 
@@ -740,7 +744,8 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 	struct ib_mr                *mr;
 	struct ib_pd		    *old_pd;
 	int                          ret;
-	struct ib_uobject	    *uobj;
+	struct ib_umr_object	    *umrobj;
+	struct ib_umr_object	    *old_umrobj;
 	struct ib_uobject	    *pduobj = NULL;
 
 	if (out_len < sizeof(resp))
@@ -762,12 +767,13 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 	     (cmd.start & ~PAGE_MASK) != (cmd.hca_va & ~PAGE_MASK)))
 			return -EINVAL;
 
-	uobj  = uobj_get_write(UVERBS_OBJECT_MR, cmd.mr_handle,
+	umrobj = (struct ib_umr_object *)
+		uobj_get_write(UVERBS_OBJECT_MR, cmd.mr_handle,
 			       file->ucontext);
-	if (IS_ERR(uobj))
-		return PTR_ERR(uobj);
+	if (IS_ERR(umrobj))
+		return PTR_ERR(umrobj);
 
-	mr = uobj->object;
+	mr = umrobj->uobject.object;
 
 	if (cmd.flags & IB_MR_REREG_ACCESS) {
 		ret = ib_check_mr_access(cmd.access_flags);
@@ -786,15 +792,19 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 	}
 
 	old_pd = mr->pd;
+	old_umrobj = container_of(mr->uobject, struct ib_umr_object, uobject);
+
 	ret = mr->device->rereg_user_mr(mr, cmd.flags, cmd.start,
 					cmd.length, cmd.hca_va,
 					cmd.access_flags, pd, &udata,
-					uobj);
+					&umrobj->uobject);
 	if (!ret) {
 		if (cmd.flags & IB_MR_REREG_PD) {
 			atomic_inc(&pd->usecnt);
+			atomic_inc(&umrobj->pduobj->obj_usecnt);
 			mr->pd = pd;
 			atomic_dec(&old_pd->usecnt);
+			atomic_dec(&old_umrobj->pduobj->obj_usecnt);
 		}
 	} else {
 		goto put_uobj_pd;
@@ -814,7 +824,7 @@ put_uobj_pd:
 		uobj_put_read(pduobj);
 
 put_uobjs:
-	uobj_put_write(uobj);
+	uobj_put_write(&umrobj->uobject);
 
 	return ret;
 }

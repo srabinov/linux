@@ -1807,6 +1807,11 @@ struct ib_mr {
 	struct rdma_restrack_entry res;
 };
 
+struct ib_umr_object {
+	struct ib_uobject       uobject;
+	struct ib_uobject      *pduobj;
+};
+
 struct ib_mw {
 	struct ib_device	*device;
 	struct ib_pd		*pd;
