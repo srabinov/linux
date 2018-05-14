@@ -242,6 +242,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 {
 	struct ib_pd *pd;
 	int mr_access_flags = 0;
+	int ret;
 
 	pd = device->alloc_pd(device, NULL, NULL);
 	if (IS_ERR(pd))
@@ -272,10 +273,13 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 
 		mr = pd->device->get_dma_mr(pd, mr_access_flags);
 		if (IS_ERR(mr)) {
-			ib_dealloc_pd(pd);
-			return ERR_CAST(mr);
+			ret = PTR_ERR(mr);
+			goto err_pd;
 		}
 
+		/* the __internal_mr is part of the ib_pd and
+		 * thus it does not bump the ib_pd use count
+		 */
 		mr->device	= pd->device;
 		mr->pd		= pd;
 		mr->uobject	= NULL;
@@ -291,6 +295,11 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 	}
 
 	return pd;
+
+err_pd:
+	ib_dealloc_pd(pd);
+
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(__ib_alloc_pd);
 
@@ -332,6 +341,9 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 {
 	struct ib_ah *ah;
 
+	if (!rdma_restrack_get(&pd->res))
+		return ERR_PTR(-EINVAL);
+
 	ah = pd->device->create_ah(pd, ah_attr, udata);
 
 	if (!IS_ERR(ah)) {
@@ -340,7 +352,8 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 		ah->uobject = NULL;
 		ah->type    = ah_attr->type;
 		atomic_inc(&pd->usecnt);
-	}
+	} else
+		rdma_restrack_put(&pd->res);
 
 	return ah;
 }
@@ -674,8 +687,10 @@ int rdma_destroy_ah(struct ib_ah *ah)
 
 	pd = ah->pd;
 	ret = ah->device->destroy_ah(ah);
-	if (!ret)
+	if (!ret) {
 		atomic_dec(&pd->usecnt);
+		rdma_restrack_put(&pd->res);
+	}
 
 	return ret;
 }
@@ -690,6 +705,9 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 
 	if (!pd->device->create_srq)
 		return ERR_PTR(-EOPNOTSUPP);
+
+	if (!rdma_restrack_get(&pd->res))
+		return ERR_PTR(-EINVAL);
 
 	srq = pd->device->create_srq(pd, srq_init_attr, NULL);
 
@@ -710,7 +728,8 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 		}
 		atomic_inc(&pd->usecnt);
 		atomic_set(&srq->usecnt, 0);
-	}
+	} else
+		rdma_restrack_put(&pd->res);
 
 	return srq;
 }
@@ -755,6 +774,7 @@ int ib_destroy_srq(struct ib_srq *srq)
 	ret = srq->device->destroy_srq(srq);
 	if (!ret) {
 		atomic_dec(&pd->usecnt);
+		rdma_restrack_put(&pd->res);
 		if (srq_type == IB_SRQT_XRC)
 			atomic_dec(&xrcd->usecnt);
 		if (ib_srq_has_cq(srq_type))
@@ -1539,8 +1559,10 @@ int ib_destroy_qp(struct ib_qp *qp)
 	rdma_restrack_del(&qp->res);
 	ret = qp->device->destroy_qp(qp);
 	if (!ret) {
-		if (pd)
+		if (pd) {
 			atomic_dec(&pd->usecnt);
+			rdma_restrack_put(&pd->res);
+		}
 		if (scq)
 			atomic_dec(&scq->usecnt);
 		if (rcq)
@@ -1623,6 +1645,7 @@ int ib_dereg_mr(struct ib_mr *mr)
 	ret = mr->device->dereg_mr(mr);
 	if (!ret) {
 		atomic_dec(&pd->usecnt);
+		rdma_restrack_put(&pd->res);
 		if (dm)
 			atomic_dec(&dm->usecnt);
 	}
@@ -1652,6 +1675,9 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 	if (!pd->device->alloc_mr)
 		return ERR_PTR(-EOPNOTSUPP);
 
+	if (!rdma_restrack_get(&pd->res))
+		return ERR_PTR(-EINVAL);
+
 	mr = pd->device->alloc_mr(pd, mr_type, max_num_sg);
 	if (!IS_ERR(mr)) {
 		mr->device  = pd->device;
@@ -1661,7 +1687,8 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 		mr->need_inval = false;
 		mr->res.type = RDMA_RESTRACK_MR;
 		rdma_restrack_add(&mr->res);
-	}
+	} else
+		rdma_restrack_put(&pd->res);
 
 	return mr;
 }
@@ -1678,12 +1705,16 @@ struct ib_fmr *ib_alloc_fmr(struct ib_pd *pd,
 	if (!pd->device->alloc_fmr)
 		return ERR_PTR(-EOPNOTSUPP);
 
+	if (!rdma_restrack_get(&pd->res))
+		return ERR_PTR(-EINVAL);
+
 	fmr = pd->device->alloc_fmr(pd, mr_access_flags, fmr_attr);
 	if (!IS_ERR(fmr)) {
 		fmr->device = pd->device;
 		fmr->pd     = pd;
 		atomic_inc(&pd->usecnt);
-	}
+	} else
+		rdma_restrack_put(&pd->res);
 
 	return fmr;
 }
@@ -1708,8 +1739,10 @@ int ib_dealloc_fmr(struct ib_fmr *fmr)
 
 	pd = fmr->pd;
 	ret = fmr->device->dealloc_fmr(fmr);
-	if (!ret)
+	if (!ret) {
+		rdma_restrack_put(&pd->res);
 		atomic_dec(&pd->usecnt);
+	}
 
 	return ret;
 }
@@ -1852,6 +1885,9 @@ struct ib_wq *ib_create_wq(struct ib_pd *pd,
 	if (!pd->device->create_wq)
 		return ERR_PTR(-EOPNOTSUPP);
 
+	if (!rdma_restrack_get(&pd->res))
+		return ERR_PTR(-EINVAL);
+
 	wq = pd->device->create_wq(pd, wq_attr, NULL);
 	if (!IS_ERR(wq)) {
 		wq->event_handler = wq_attr->event_handler;
@@ -1864,7 +1900,9 @@ struct ib_wq *ib_create_wq(struct ib_pd *pd,
 		atomic_inc(&pd->usecnt);
 		atomic_inc(&wq_attr->cq->usecnt);
 		atomic_set(&wq->usecnt, 0);
-	}
+	} else
+		rdma_restrack_put(&pd->res);
+
 	return wq;
 }
 EXPORT_SYMBOL(ib_create_wq);
@@ -1884,6 +1922,7 @@ int ib_destroy_wq(struct ib_wq *wq)
 
 	err = wq->device->destroy_wq(wq);
 	if (!err) {
+		rdma_restrack_put(&pd->res);
 		atomic_dec(&pd->usecnt);
 		atomic_dec(&cq->usecnt);
 	}

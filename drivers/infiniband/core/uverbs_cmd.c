@@ -673,12 +673,17 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 		goto err_free;
 	}
 
+	if (!rdma_restrack_get(&pd->res)) {
+		ret = -EINVAL;
+		goto err_put;
+	}
+
 	if (cmd.access_flags & IB_ACCESS_ON_DEMAND) {
 		if (!(pd->device->attrs.device_cap_flags &
 		      IB_DEVICE_ON_DEMAND_PAGING)) {
 			pr_debug("ODP support not available\n");
 			ret = -EINVAL;
-			goto err_put;
+			goto err_res;
 		}
 	}
 
@@ -686,7 +691,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 				     cmd.access_flags, &udata);
 	if (IS_ERR(mr)) {
 		ret = PTR_ERR(mr);
-		goto err_put;
+		goto err_res;
 	}
 
 	mr->device  = pd->device;
@@ -716,6 +721,9 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 
 err_copy:
 	ib_dereg_mr(mr);
+
+err_res:
+	rdma_restrack_put(&pd->res);
 
 err_put:
 	uobj_put_obj_read(pd);
@@ -780,16 +788,32 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 	}
 
 	old_pd = mr->pd;
+
+	if (cmd.flags & IB_MR_REREG_PD) {
+		/* pd usecnt update can fail so do it before the
+		 * call to rereg_user_mr
+		 */
+		if (!rdma_restrack_get(&pd->res)) {
+			ret = -EINVAL;
+			goto put_uobj_pd;
+		}
+		atomic_inc(&pd->usecnt);
+	}
+
 	ret = mr->device->rereg_user_mr(mr, cmd.flags, cmd.start,
 					cmd.length, cmd.hca_va,
 					cmd.access_flags, pd, &udata);
 	if (!ret) {
 		if (cmd.flags & IB_MR_REREG_PD) {
-			atomic_inc(&pd->usecnt);
 			mr->pd = pd;
+			rdma_restrack_put(&old_pd->res);
 			atomic_dec(&old_pd->usecnt);
 		}
 	} else {
+		if (cmd.flags & IB_MR_REREG_PD) {
+			rdma_restrack_put(&pd->res);
+			atomic_dec(&pd->usecnt);
+		}
 		goto put_uobj_pd;
 	}
 
@@ -863,6 +887,11 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 		goto err_free;
 	}
 
+	if (!rdma_restrack_get(&pd->res)) {
+		ret = -EINVAL;
+		goto err_put;
+	}
+
 	ib_uverbs_init_udata(&udata, buf + sizeof(cmd),
 		   u64_to_user_ptr(cmd.response) + sizeof(resp),
 		   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
@@ -871,7 +900,7 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 	mw = pd->device->alloc_mw(pd, cmd.mw_type, &udata);
 	if (IS_ERR(mw)) {
 		ret = PTR_ERR(mw);
-		goto err_put;
+		goto err_res;
 	}
 
 	mw->device  = pd->device;
@@ -897,6 +926,8 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 
 err_copy:
 	uverbs_dealloc_mw(mw);
+err_res:
+	rdma_restrack_put(&pd->res);
 err_put:
 	uobj_put_obj_read(pd);
 err_free:
@@ -3033,10 +3064,15 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 		goto err_uobj;
 	}
 
+	if (!rdma_restrack_get(&pd->res)) {
+		err = -EINVAL;
+		goto err_put_pd;
+	}
+
 	cq = uobj_get_obj_read(cq, UVERBS_OBJECT_CQ, cmd.cq_handle, file->ucontext);
 	if (!cq) {
 		err = -EINVAL;
-		goto err_put_pd;
+		goto err_res;
 	}
 
 	wq_init_attr.cq = cq;
@@ -3094,6 +3130,8 @@ err_copy:
 	ib_destroy_wq(wq);
 err_put_cq:
 	uobj_put_obj_read(cq);
+err_res:
+	rdma_restrack_put(&pd->res);
 err_put_pd:
 	uobj_put_obj_read(pd);
 err_uobj:
@@ -3635,6 +3673,11 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 		goto err_put_cq;
 	}
 
+	if (!rdma_restrack_get(&pd->res)) {
+		ret = -EINVAL;
+		goto err_put;
+	}
+
 	attr.event_handler  = ib_uverbs_srq_event_handler;
 	attr.srq_context    = file;
 	attr.srq_type       = cmd->srq_type;
@@ -3648,7 +3691,7 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 	srq = pd->device->create_srq(pd, &attr, udata);
 	if (IS_ERR(srq)) {
 		ret = PTR_ERR(srq);
-		goto err_put;
+		goto err_res;
 	}
 
 	srq->device        = pd->device;
@@ -3700,6 +3743,9 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 
 err_copy:
 	ib_destroy_srq(srq);
+
+err_res:
+	rdma_restrack_put(&pd->res);
 
 err_put:
 	uobj_put_obj_read(pd);

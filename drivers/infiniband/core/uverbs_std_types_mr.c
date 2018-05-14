@@ -97,18 +97,25 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(struct ib_device *ib_dev,
 
 	uobj->object = mr;
 
+	if (!rdma_restrack_get(&pd->res)) {
+		ret = -EINVAL;
+		goto err_dereg;
+	}
+
 	ret = uverbs_copy_to(attrs, UVERBS_ATTR_REG_DM_MR_RESP_LKEY, &mr->lkey,
 			     sizeof(mr->lkey));
 	if (ret)
-		goto err_dereg;
+		goto err_pd_res;
 
 	ret = uverbs_copy_to(attrs, UVERBS_ATTR_REG_DM_MR_RESP_RKEY,
 			     &mr->rkey, sizeof(mr->rkey));
 	if (ret)
-		goto err_dereg;
+		goto err_pd_res;
 
 	return 0;
 
+err_pd_res:
+	rdma_restrack_put(&pd->res);
 err_dereg:
 	ib_dereg_mr(mr);
 

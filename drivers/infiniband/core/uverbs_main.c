@@ -142,8 +142,10 @@ int uverbs_dealloc_mw(struct ib_mw *mw)
 	int ret;
 
 	ret = mw->device->dealloc_mw(mw);
-	if (!ret)
+	if (!ret) {
+		rdma_restrack_put(&pd->res);
 		atomic_dec(&pd->usecnt);
+	}
 	return ret;
 }
 
