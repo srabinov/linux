@@ -171,6 +171,16 @@ int __must_check rdma_restrack_get(struct rdma_restrack_entry *res);
 int rdma_restrack_put(struct rdma_restrack_entry *res);
 
 /**
+ * rdma_restrack_usecnt() - resource usecnt
+ * @res:  resource entry
+ */
+static inline
+unsigned int rdma_restrack_usecnt(struct rdma_restrack_entry *res)
+{
+	return kref_read(&res->kref) - 1;
+}
+
+/**
  * rdma_restrack_set_task() - set the task for this resource
  * @res:  resource entry
  * @task: task struct
