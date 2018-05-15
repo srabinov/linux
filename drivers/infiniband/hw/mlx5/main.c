@@ -4333,19 +4333,24 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 
 	mutex_init(&devr->mutex);
 
-	devr->p0 = mlx5_ib_alloc_pd(&dev->ib_dev, NULL, NULL);
+	devr->p0 = ib_alloc_pd(&dev->ib_dev, 0);
 	if (IS_ERR(devr->p0)) {
 		ret = PTR_ERR(devr->p0);
-		goto error0;
+		goto err;
 	}
-	devr->p0->device  = &dev->ib_dev;
-	devr->p0->uobject = NULL;
-	atomic_set(&devr->p0->usecnt, 0);
+	if (!rdma_restrack_get(&devr->p0->res)) {
+		ret = -EINVAL;
+		goto err_pd;
+	}
+	if (!rdma_restrack_get(&devr->p0->res)) {
+		ret = -EINVAL;
+		goto err_pd_res1;
+	}
 
 	devr->c0 = mlx5_ib_create_cq(&dev->ib_dev, &cq_attr, NULL, NULL);
 	if (IS_ERR(devr->c0)) {
 		ret = PTR_ERR(devr->c0);
-		goto error1;
+		goto err_pd_res2;
 	}
 	devr->c0->device        = &dev->ib_dev;
 	devr->c0->uobject       = NULL;
@@ -4357,7 +4362,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->x0 = mlx5_ib_alloc_xrcd(&dev->ib_dev, NULL, NULL);
 	if (IS_ERR(devr->x0)) {
 		ret = PTR_ERR(devr->x0);
-		goto error2;
+		goto err_cq;
 	}
 	devr->x0->device = &dev->ib_dev;
 	devr->x0->inode = NULL;
@@ -4368,7 +4373,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->x1 = mlx5_ib_alloc_xrcd(&dev->ib_dev, NULL, NULL);
 	if (IS_ERR(devr->x1)) {
 		ret = PTR_ERR(devr->x1);
-		goto error3;
+		goto err_xrcd1;
 	}
 	devr->x1->device = &dev->ib_dev;
 	devr->x1->inode = NULL;
@@ -4386,7 +4391,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->s0 = mlx5_ib_create_srq(devr->p0, &attr, NULL);
 	if (IS_ERR(devr->s0)) {
 		ret = PTR_ERR(devr->s0);
-		goto error4;
+		goto err_xrcd2;
 	}
 	devr->s0->device	= &dev->ib_dev;
 	devr->s0->pd		= devr->p0;
@@ -4408,7 +4413,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->s1 = mlx5_ib_create_srq(devr->p0, &attr, NULL);
 	if (IS_ERR(devr->s1)) {
 		ret = PTR_ERR(devr->s1);
-		goto error5;
+		goto err_srq;
 	}
 	devr->s1->device	= &dev->ib_dev;
 	devr->s1->pd		= devr->p0;
@@ -4428,17 +4433,22 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 
 	return 0;
 
-error5:
+err_srq:
+	atomic_dec(&devr->p0->usecnt);
 	mlx5_ib_destroy_srq(devr->s0);
-error4:
+err_xrcd2:
 	mlx5_ib_dealloc_xrcd(devr->x1);
-error3:
+err_xrcd1:
 	mlx5_ib_dealloc_xrcd(devr->x0);
-error2:
+err_cq:
 	mlx5_ib_destroy_cq(devr->c0);
-error1:
-	mlx5_ib_dealloc_pd(devr->p0);
-error0:
+err_pd_res2:
+	rdma_restrack_put(&devr->p0->res);
+err_pd_res1:
+	rdma_restrack_put(&devr->p0->res);
+err_pd:
+	ib_dealloc_pd(devr->p0);
+err:
 	return ret;
 }
 
@@ -4449,11 +4459,15 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 	int port;
 
 	mlx5_ib_destroy_srq(devr->s1);
+	atomic_dec(&devr->p0->usecnt);
+	rdma_restrack_put(&devr->p0->res);
 	mlx5_ib_destroy_srq(devr->s0);
+	atomic_dec(&devr->p0->usecnt);
+	rdma_restrack_put(&devr->p0->res);
 	mlx5_ib_dealloc_xrcd(devr->x0);
 	mlx5_ib_dealloc_xrcd(devr->x1);
 	mlx5_ib_destroy_cq(devr->c0);
-	mlx5_ib_dealloc_pd(devr->p0);
+	ib_dealloc_pd(devr->p0);
 
 	/* Make sure no change P_Key work items are still executing */
 	for (port = 0; port < dev->num_ports; ++port)
