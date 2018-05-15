@@ -197,6 +197,12 @@ int rdma_restrack_put(struct rdma_restrack_entry *res)
 }
 EXPORT_SYMBOL(rdma_restrack_put);
 
+int rdma_restrack_usecnt(struct rdma_restrack_entry *res)
+{
+	return kref_read(&res->kref) - 1;
+}
+EXPORT_SYMBOL(rdma_restrack_usecnt);
+
 void rdma_restrack_del(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev;
