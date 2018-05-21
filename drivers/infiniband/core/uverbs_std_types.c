@@ -168,7 +168,7 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 {
 	struct ib_pd *pd = uobject->object;
 
-	if (why == RDMA_REMOVE_DESTROY && atomic_read(&pd->usecnt))
+	if (why == RDMA_REMOVE_DESTROY && rdma_restrack_usecnt(&pd->res))
 		return -EBUSY;
 
 	ib_dealloc_pd((struct ib_pd *)uobject->object);

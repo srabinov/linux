@@ -1541,7 +1541,6 @@ struct ib_pd {
 	u32			flags;
 	struct ib_device       *device;
 	struct ib_uobject      *uobject;
-	atomic_t          	usecnt; /* count all resources */
 
 	u32			unsafe_global_rkey;
 

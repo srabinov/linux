@@ -4106,7 +4106,6 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->s0->ext.cq	= devr->c0;
 	atomic_inc(&devr->s0->ext.xrc.xrcd->usecnt);
 	atomic_inc(&devr->s0->ext.cq->usecnt);
-	atomic_inc(&devr->p0->usecnt);
 	atomic_set(&devr->s0->usecnt, 0);
 
 	memset(&attr, 0, sizeof(attr));
@@ -4125,7 +4124,6 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->s1->srq_context   = NULL;
 	devr->s1->srq_type      = IB_SRQT_BASIC;
 	devr->s1->ext.cq	= devr->c0;
-	atomic_inc(&devr->p0->usecnt);
 	atomic_set(&devr->s1->usecnt, 0);
 
 	for (port = 0; port < ARRAY_SIZE(devr->ports); ++port) {
@@ -4137,7 +4135,6 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	return 0;
 
 err_srq:
-	atomic_dec(&devr->p0->usecnt);
 	mlx5_ib_destroy_srq(devr->s0);
 err_xrcd2:
 	mlx5_ib_dealloc_xrcd(devr->x1);
@@ -4162,10 +4159,8 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 	int port;
 
 	mlx5_ib_destroy_srq(devr->s1);
-	atomic_dec(&devr->p0->usecnt);
 	rdma_restrack_put(&devr->p0->res);
 	mlx5_ib_destroy_srq(devr->s0);
-	atomic_dec(&devr->p0->usecnt);
 	rdma_restrack_put(&devr->p0->res);
 	mlx5_ib_dealloc_xrcd(devr->x0);
 	mlx5_ib_dealloc_xrcd(devr->x1);

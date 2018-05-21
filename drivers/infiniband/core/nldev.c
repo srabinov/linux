@@ -484,7 +484,7 @@ static int fill_res_pd_entry(struct sk_buff *msg, struct netlink_callback *cb,
 			goto err;
 	}
 	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_RES_USECNT,
-			      atomic_read(&pd->usecnt), 0))
+			      rdma_restrack_usecnt(&pd->res), 0))
 		goto err;
 	if ((pd->flags & IB_PD_UNSAFE_GLOBAL_RKEY) &&
 	    nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY,

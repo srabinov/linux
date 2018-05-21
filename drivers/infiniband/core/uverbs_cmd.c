@@ -335,7 +335,6 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	pd->device  = ib_dev;
 	pd->uobject = uobj;
 	pd->__internal_mr = NULL;
-	atomic_set(&pd->usecnt, 0);
 
 	uobj->object = pd;
 	memset(&resp, 0, sizeof resp);
@@ -697,7 +696,6 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	mr->device  = pd->device;
 	mr->pd      = pd;
 	mr->uobject = uobj;
-	atomic_inc(&pd->usecnt);
 	mr->res.type = RDMA_RESTRACK_MR;
 	rdma_restrack_add(&mr->res);
 
@@ -797,7 +795,6 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 			ret = -EINVAL;
 			goto put_uobj_pd;
 		}
-		atomic_inc(&pd->usecnt);
 	}
 
 	ret = mr->device->rereg_user_mr(mr, cmd.flags, cmd.start,
@@ -807,13 +804,10 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 		if (cmd.flags & IB_MR_REREG_PD) {
 			mr->pd = pd;
 			rdma_restrack_put(&old_pd->res);
-			atomic_dec(&old_pd->usecnt);
 		}
 	} else {
-		if (cmd.flags & IB_MR_REREG_PD) {
+		if (cmd.flags & IB_MR_REREG_PD)
 			rdma_restrack_put(&pd->res);
-			atomic_dec(&pd->usecnt);
-		}
 		goto put_uobj_pd;
 	}
 
@@ -906,7 +900,6 @@ ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
 	mw->device  = pd->device;
 	mw->pd      = pd;
 	mw->uobject = uobj;
-	atomic_inc(&pd->usecnt);
 
 	uobj->object = mw;
 
@@ -1576,7 +1569,6 @@ static int create_qp(struct ib_uverbs_file *file,
 		qp->qp_context	  = attr.qp_context;
 		qp->qp_type	  = attr.qp_type;
 		atomic_set(&qp->usecnt, 0);
-		atomic_inc(&pd->usecnt);
 		qp->port = 0;
 		if (attr.send_cq)
 			atomic_inc(&attr.send_cq->usecnt);
@@ -3105,7 +3097,6 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 	wq->device = pd->device;
 	wq->wq_context = wq_init_attr.wq_context;
 	atomic_set(&wq->usecnt, 0);
-	atomic_inc(&pd->usecnt);
 	atomic_inc(&cq->usecnt);
 	wq->uobject = &obj->uevent.uobject;
 	obj->uevent.uobject.object = wq;
@@ -3711,7 +3702,6 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 		atomic_inc(&attr.ext.xrc.xrcd->usecnt);
 	}
 
-	atomic_inc(&pd->usecnt);
 	atomic_set(&srq->usecnt, 0);
 
 	obj->uevent.uobject.object = srq;
