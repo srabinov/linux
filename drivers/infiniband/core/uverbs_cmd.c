@@ -340,6 +340,7 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	memset(&resp, 0, sizeof resp);
 	resp.pd_handle = uobj->id;
 	pd->res.type = RDMA_RESTRACK_PD;
+	pd->res.user = true;
 	rdma_restrack_add(&pd->res);
 
 	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
@@ -697,6 +698,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	mr->pd      = pd;
 	mr->uobject = uobj;
 	mr->res.type = RDMA_RESTRACK_MR;
+	mr->res.user = true;
 	rdma_restrack_add(&mr->res);
 
 	uobj->object = mr;
@@ -1059,6 +1061,7 @@ static struct ib_ucq_object *create_cq(struct ib_uverbs_file *file,
 		sizeof(resp.response_length);
 
 	cq->res.type = RDMA_RESTRACK_CQ;
+	cq->res.user = true;
 	rdma_restrack_add(&cq->res);
 
 	ret = cb(file, obj, &resp, ucore, context);

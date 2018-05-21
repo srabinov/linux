@@ -264,6 +264,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 	}
 
 	pd->res.type = RDMA_RESTRACK_PD;
+	pd->res.user = false;
 	pd->res.kern_name = caller;
 	rdma_restrack_add(&pd->res);
 
@@ -1593,6 +1594,7 @@ struct ib_cq *ib_create_cq(struct ib_device *device,
 		cq->cq_context    = cq_context;
 		atomic_set(&cq->usecnt, 0);
 		cq->res.type = RDMA_RESTRACK_CQ;
+		cq->res.user = false;
 		rdma_restrack_add(&cq->res);
 	}
 
@@ -1675,6 +1677,7 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 		mr->uobject = NULL;
 		mr->need_inval = false;
 		mr->res.type = RDMA_RESTRACK_MR;
+		mr->res.user = false;
 		rdma_restrack_add(&mr->res);
 	} else
 		rdma_restrack_put(&pd->res);

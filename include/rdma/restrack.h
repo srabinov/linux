@@ -102,6 +102,10 @@ struct rdma_restrack_entry {
 	 * @type: various objects in restrack database
 	 */
 	enum rdma_restrack_type	type;
+	/**
+	 * @user: user resource
+	 */
+	bool			user;
 };
 
 /**

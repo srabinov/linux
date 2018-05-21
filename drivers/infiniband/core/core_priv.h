@@ -332,6 +332,7 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 	 */
 	if (attr->qp_type < IB_QPT_XRC_INI) {
 		qp->res.type = RDMA_RESTRACK_QP;
+		qp->res.user = !!uobj;
 		rdma_restrack_add(&qp->res);
 	} else
 		qp->res.valid = false;
