@@ -1783,7 +1783,7 @@ out:
 	return ret;
 }
 
-int c4iw_destroy_qp(struct ib_qp *ib_qp)
+int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_uobject *uobject)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_qp *qhp;
@@ -1814,7 +1814,7 @@ int c4iw_destroy_qp(struct ib_qp *ib_qp)
 }
 
 struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
-			     struct ib_udata *udata)
+			     struct ib_udata *udata, struct ib_uobject *uobject)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_qp *qhp;
@@ -1827,6 +1827,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	int ret;
 	struct c4iw_mm_entry *sq_key_mm, *rq_key_mm = NULL, *sq_db_key_mm;
 	struct c4iw_mm_entry *rq_db_key_mm = NULL, *ma_sync_key_mm = NULL;
+	struct ib_ucontext *context = uobject ? uobject->context : NULL;
 
 	pr_debug("ib_pd %p\n", pd);
 
@@ -1855,7 +1856,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	if (sqsize < 8)
 		sqsize = 8;
 
-	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;
+	ucontext = context ? to_c4iw_ucontext(context) : NULL;
 
 	qhp = kzalloc(sizeof(*qhp), GFP_KERNEL);
 	if (!qhp)

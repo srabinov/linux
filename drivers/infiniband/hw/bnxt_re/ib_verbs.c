@@ -563,7 +563,7 @@ fail:
 }
 
 /* Protection Domains */
-int bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
+int bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_uobject *uobject)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
@@ -584,10 +584,11 @@ int bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
 }
 
 struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
-			       struct ib_ucontext *ucontext,
+			       struct ib_uobject *uobject,
 			       struct ib_udata *udata)
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 	struct bnxt_re_ucontext *ucntx = container_of(ucontext,
 						      struct bnxt_re_ucontext,
 						      ib_uctx);
@@ -664,7 +665,8 @@ int bnxt_re_destroy_ah(struct ib_ah *ib_ah)
 
 struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 				struct rdma_ah_attr *ah_attr,
-				struct ib_udata *udata)
+				struct ib_udata *udata,
+				struct ib_uobject *uobject)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
@@ -700,7 +702,7 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 	ah->qplib_ah.flow_label = grh->flow_label;
 	ah->qplib_ah.hop_limit = grh->hop_limit;
 	ah->qplib_ah.sl = rdma_ah_get_sl(ah_attr);
-	if (ib_pd->uobject &&
+	if (uobject &&
 	    !rdma_is_multicast_addr((struct in6_addr *)
 				    grh->dgid.raw) &&
 	    !rdma_link_local_addr((struct in6_addr *)
@@ -740,8 +742,8 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 	}
 
 	/* Write AVID to shared page. */
-	if (ib_pd->uobject) {
-		struct ib_ucontext *ib_uctx = ib_pd->uobject->context;
+	if (udata) {
+		struct ib_ucontext *ib_uctx = uobject ? uobject->context : NULL;
 		struct bnxt_re_ucontext *uctx;
 		unsigned long flag;
 		u32 *wrptr;
@@ -808,7 +810,7 @@ void bnxt_re_unlock_cqs(struct bnxt_re_qp *qp,
 }
 
 /* Queue Pairs */
-int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
+int bnxt_re_destroy_qp(struct ib_qp *ib_qp, struct ib_uobject *uobject)
 {
 	struct bnxt_re_qp *qp = container_of(ib_qp, struct bnxt_re_qp, ib_qp);
 	struct bnxt_re_dev *rdev = qp->rdev;
@@ -883,13 +885,14 @@ static u8 __from_ib_qp_type(enum ib_qp_type type)
 }
 
 static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
-				struct bnxt_re_qp *qp, struct ib_udata *udata)
+				struct bnxt_re_qp *qp, struct ib_udata *udata,
+				struct ib_uobject *uobject)
 {
 	struct bnxt_re_qp_req ureq;
 	struct bnxt_qplib_qp *qplib_qp = &qp->qplib_qp;
 	struct ib_umem *umem;
 	int bytes = 0;
-	struct ib_ucontext *context = pd->ib_pd.uobject->context;
+	struct ib_ucontext *context = uobject ? uobject->context : NULL;
 	struct bnxt_re_ucontext *cntx = container_of(context,
 						     struct bnxt_re_ucontext,
 						     ib_uctx);
@@ -1046,7 +1049,8 @@ fail:
 
 struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 				struct ib_qp_init_attr *qp_init_attr,
-				struct ib_udata *udata)
+				struct ib_udata *udata,
+				struct ib_uobject *uobject)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
@@ -1203,7 +1207,7 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 		qp->qplib_qp.max_rd_atomic = dev_attr->max_qp_rd_atom;
 		qp->qplib_qp.max_dest_rd_atomic = dev_attr->max_qp_init_rd_atom;
 		if (udata) {
-			rc = bnxt_re_init_user_qp(rdev, pd, qp, udata);
+			rc = bnxt_re_init_user_qp(rdev, pd, qp, udata, uobject);
 			if (rc)
 				goto fail;
 		} else {
@@ -1361,13 +1365,14 @@ int bnxt_re_destroy_srq(struct ib_srq *ib_srq)
 static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 				 struct bnxt_re_pd *pd,
 				 struct bnxt_re_srq *srq,
-				 struct ib_udata *udata)
+				 struct ib_udata *udata,
+				 struct ib_uobject *uobject)
 {
 	struct bnxt_re_srq_req ureq;
 	struct bnxt_qplib_srq *qplib_srq = &srq->qplib_srq;
 	struct ib_umem *umem;
 	int bytes = 0;
-	struct ib_ucontext *context = pd->ib_pd.uobject->context;
+	struct ib_ucontext *context = uobject ? uobject->context : NULL;
 	struct bnxt_re_ucontext *cntx = container_of(context,
 						     struct bnxt_re_ucontext,
 						     ib_uctx);
@@ -1392,7 +1397,8 @@ static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 
 struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
 				  struct ib_srq_init_attr *srq_init_attr,
-				  struct ib_udata *udata)
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
@@ -1435,7 +1441,7 @@ struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
 	nq = &rdev->nq[0];
 
 	if (udata) {
-		rc = bnxt_re_init_user_srq(rdev, pd, srq, udata);
+		rc = bnxt_re_init_user_srq(rdev, pd, srq, udata, uobject);
 		if (rc)
 			goto fail;
 	}
@@ -3391,7 +3397,7 @@ fail:
 	return ERR_PTR(rc);
 }
 
-int bnxt_re_dereg_mr(struct ib_mr *ib_mr)
+int bnxt_re_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject)
 {
 	struct bnxt_re_mr *mr = container_of(ib_mr, struct bnxt_re_mr, ib_mr);
 	struct bnxt_re_dev *rdev = mr->rdev;
@@ -3437,7 +3443,7 @@ int bnxt_re_map_mr_sg(struct ib_mr *ib_mr, struct scatterlist *sg, int sg_nents,
 }
 
 struct ib_mr *bnxt_re_alloc_mr(struct ib_pd *ib_pd, enum ib_mr_type type,
-			       u32 max_num_sg)
+			       u32 max_num_sg, struct ib_uobject *uobject)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
@@ -3584,7 +3590,8 @@ static int fill_umem_pbl_tbl(struct ib_umem *umem, u64 *pbl_tbl_orig,
 /* uverbs */
 struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 				  u64 virt_addr, int mr_access_flags,
-				  struct ib_udata *udata)
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
@@ -3592,6 +3599,7 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 	struct ib_umem *umem;
 	u64 *pbl_tbl = NULL;
 	int umem_pgs, page_shift, rc;
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
 	if (length > BNXT_RE_MAX_MR_SIZE) {
 		dev_err(rdev_to_dev(rdev), "MR Size: %lld > Max supported:%lld\n",
@@ -3616,7 +3624,7 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 	/* The fixed portion of the rkey is the same as the lkey */
 	mr->ib_mr.rkey = mr->qplib_mr.rkey;
 
-	umem = ib_umem_get(ib_pd->uobject->context, start, length,
+	umem = ib_umem_get(ucontext, start, length,
 			   mr_access_flags, 0);
 	if (IS_ERR(umem)) {
 		dev_err(rdev_to_dev(rdev), "Failed to get umem");

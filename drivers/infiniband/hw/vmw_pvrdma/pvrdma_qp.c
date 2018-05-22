@@ -187,7 +187,8 @@ static int pvrdma_set_sq_size(struct pvrdma_dev *dev, struct ib_qp_cap *req_cap,
  */
 struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 			       struct ib_qp_init_attr *init_attr,
-			       struct ib_udata *udata)
+			       struct ib_udata *udata,
+			       struct ib_uobject *uobject)
 {
 	struct pvrdma_qp *qp = NULL;
 	struct pvrdma_dev *dev = to_vdev(pd->device);

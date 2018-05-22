@@ -2344,7 +2344,7 @@ int mlx5_ib_dealloc_dm(struct ib_dm *ibdm)
 }
 
 static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
-				      struct ib_ucontext *context,
+				      struct ib_uobject *uobject,
 				      struct ib_udata *udata)
 {
 	struct mlx5_ib_alloc_pd_resp resp;
@@ -2361,7 +2361,7 @@ static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
 		return ERR_PTR(err);
 	}
 
-	if (context) {
+	if (uobject) {
 		resp.pdn = pd->pdn;
 		if (ib_copy_to_udata(udata, &resp, sizeof(resp))) {
 			mlx5_core_dealloc_pd(to_mdev(ibdev)->mdev, pd->pdn);
@@ -2373,7 +2373,7 @@ static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
 	return &pd->ibpd;
 }
 
-static int mlx5_ib_dealloc_pd(struct ib_pd *pd)
+static int mlx5_ib_dealloc_pd(struct ib_pd *pd, struct ib_uobject *uobject)
 {
 	struct mlx5_ib_dev *mdev = to_mdev(pd->device);
 	struct mlx5_ib_pd *mpd = to_mpd(pd);
@@ -3890,7 +3890,7 @@ static void destroy_umrc_res(struct mlx5_ib_dev *dev)
 		mlx5_ib_warn(dev, "mr cache cleanup failed\n");
 
 	if (dev->umrc.qp)
-		mlx5_ib_destroy_qp(dev->umrc.qp);
+		mlx5_ib_destroy_qp(dev->umrc.qp, NULL);
 	if (dev->umrc.cq)
 		ib_free_cq(dev->umrc.cq);
 	if (dev->umrc.pd)
@@ -3938,7 +3938,7 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 	init_attr->cap.max_send_sge = 1;
 	init_attr->qp_type = MLX5_IB_QPT_REG_UMR;
 	init_attr->port_num = 1;
-	qp = mlx5_ib_create_qp(pd, init_attr, NULL);
+	qp = mlx5_ib_create_qp(pd, init_attr, NULL, NULL);
 	if (IS_ERR(qp)) {
 		mlx5_ib_dbg(dev, "Couldn't create sync UMR QP\n");
 		ret = PTR_ERR(qp);
@@ -3995,7 +3995,7 @@ static int create_umr_res(struct mlx5_ib_dev *dev)
 	return 0;
 
 error_4:
-	mlx5_ib_destroy_qp(qp);
+	mlx5_ib_destroy_qp(qp, NULL);
 	dev->umrc.qp = NULL;
 
 error_3:
@@ -4091,7 +4091,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	attr.ext.cq = devr->c0;
 	attr.ext.xrc.xrcd = devr->x0;
 
-	devr->s0 = mlx5_ib_create_srq(devr->p0, &attr, NULL);
+	devr->s0 = mlx5_ib_create_srq(devr->p0, &attr, NULL, NULL);
 	if (IS_ERR(devr->s0)) {
 		ret = PTR_ERR(devr->s0);
 		goto err_xrcd2;
@@ -4112,7 +4112,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	attr.attr.max_sge = 1;
 	attr.attr.max_wr = 1;
 	attr.srq_type = IB_SRQT_BASIC;
-	devr->s1 = mlx5_ib_create_srq(devr->p0, &attr, NULL);
+	devr->s1 = mlx5_ib_create_srq(devr->p0, &attr, NULL, NULL);
 	if (IS_ERR(devr->s1)) {
 		ret = PTR_ERR(devr->s1);
 		goto err_srq;

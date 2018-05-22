@@ -452,11 +452,12 @@ int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 }
 
 struct ib_pd *usnic_ib_alloc_pd(struct ib_device *ibdev,
-					struct ib_ucontext *context,
-					struct ib_udata *udata)
+				struct ib_uobject *uobject,
+				struct ib_udata *udata)
 {
 	struct usnic_ib_pd *pd;
 	void *umem_pd;
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
 	usnic_dbg("\n");
 
@@ -471,11 +472,11 @@ struct ib_pd *usnic_ib_alloc_pd(struct ib_device *ibdev,
 	}
 
 	usnic_info("domain 0x%p allocated for context 0x%p and device %s\n",
-			pd, context, ibdev->name);
+			pd, ucontext, ibdev->name);
 	return &pd->ibpd;
 }
 
-int usnic_ib_dealloc_pd(struct ib_pd *pd)
+int usnic_ib_dealloc_pd(struct ib_pd *pd, struct ib_uobject *uobject)
 {
 	usnic_info("freeing domain 0x%p\n", pd);
 
@@ -485,8 +486,9 @@ int usnic_ib_dealloc_pd(struct ib_pd *pd)
 }
 
 struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
-					struct ib_qp_init_attr *init_attr,
-					struct ib_udata *udata)
+				 struct ib_qp_init_attr *init_attr,
+				 struct ib_udata *udata,
+				 struct ib_uobject *uobject)
 {
 	int err;
 	struct usnic_ib_dev *us_ibdev;
@@ -496,10 +498,11 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 	struct usnic_vnic_res_spec res_spec;
 	struct usnic_ib_create_qp_cmd cmd;
 	struct usnic_transport_spec trans_spec;
+	struct ib_ucontext *context = uobject ? uobject->context : NULL;
 
 	usnic_dbg("\n");
 
-	ucontext = to_uucontext(pd->uobject->context);
+	ucontext = to_uucontext(context);
 	us_ibdev = to_usdev(pd->device);
 
 	if (init_attr->create_flags)
@@ -557,7 +560,7 @@ out_release_mutex:
 	return ERR_PTR(err);
 }
 
-int usnic_ib_destroy_qp(struct ib_qp *qp)
+int usnic_ib_destroy_qp(struct ib_qp *qp, struct ib_uobject *uobject)
 {
 	struct usnic_ib_qp_grp *qp_grp;
 	struct usnic_ib_vf *vf;
@@ -632,8 +635,9 @@ int usnic_ib_destroy_cq(struct ib_cq *cq)
 }
 
 struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,
-					u64 virt_addr, int access_flags,
-					struct ib_udata *udata)
+			      u64 virt_addr, int access_flags,
+			      struct ib_udata *udata,
+			      struct ib_uobject *uobject)
 {
 	struct usnic_ib_mr *mr;
 	int err;
@@ -660,13 +664,14 @@ err_free:
 	return ERR_PTR(err);
 }
 
-int usnic_ib_dereg_mr(struct ib_mr *ibmr)
+int usnic_ib_dereg_mr(struct ib_mr *ibmr, struct ib_uobject *uobject)
 {
 	struct usnic_ib_mr *mr = to_umr(ibmr);
+	struct ib_ucontext *ucontext = uobject->context;
 
 	usnic_dbg("va 0x%lx length 0x%zx\n", mr->umem->va, mr->umem->length);
 
-	usnic_uiom_reg_release(mr->umem, ibmr->pd->uobject->context->closing);
+	usnic_uiom_reg_release(mr->umem, ucontext->closing);
 	kfree(mr);
 	return 0;
 }
@@ -758,7 +763,8 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 /* In ib callbacks section -  Start of stub funcs */
 struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
 				 struct rdma_ah_attr *ah_attr,
-				 struct ib_udata *udata)
+				 struct ib_udata *udata,
+				 struct ib_uobject *uobject)
 
 {
 	usnic_dbg("\n");

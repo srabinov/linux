@@ -671,7 +671,7 @@ dpp_map_err:
 }
 
 struct ib_pd *ocrdma_alloc_pd(struct ib_device *ibdev,
-			      struct ib_ucontext *context,
+			      struct ib_uobject *uobject,
 			      struct ib_udata *udata)
 {
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
@@ -679,6 +679,7 @@ struct ib_pd *ocrdma_alloc_pd(struct ib_device *ibdev,
 	struct ocrdma_ucontext *uctx = NULL;
 	int status;
 	u8 is_uctx_pd = false;
+	struct ib_ucontext *context = uobject ? uobject->context : NULL;
 
 	if (udata && context) {
 		uctx = get_ocrdma_ucontext(context);
@@ -714,7 +715,7 @@ exit:
 	return ERR_PTR(status);
 }
 
-int ocrdma_dealloc_pd(struct ib_pd *ibpd)
+int ocrdma_dealloc_pd(struct ib_pd *ibpd, struct ib_uobject *uobject)
 {
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
@@ -912,13 +913,15 @@ static void build_user_pbes(struct ocrdma_dev *dev, struct ocrdma_mr *mr,
 }
 
 struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
-				 u64 usr_addr, int acc, struct ib_udata *udata)
+				 u64 usr_addr, int acc, struct ib_udata *udata,
+				 struct ib_uobject *uobject)
 {
 	int status = -ENOMEM;
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);
 	struct ocrdma_mr *mr;
 	struct ocrdma_pd *pd;
 	u32 num_pbes;
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
 	pd = get_ocrdma_pd(ibpd);
 
@@ -928,7 +931,7 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
 		return ERR_PTR(status);
-	mr->umem = ib_umem_get(ibpd->uobject->context, start, len, acc, 0);
+	mr->umem = ib_umem_get(ucontext, start, len, acc, 0);
 	if (IS_ERR(mr->umem)) {
 		status = -EFAULT;
 		goto umem_err;
@@ -967,7 +970,7 @@ umem_err:
 	return ERR_PTR(status);
 }
 
-int ocrdma_dereg_mr(struct ib_mr *ib_mr)
+int ocrdma_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject)
 {
 	struct ocrdma_mr *mr = get_ocrdma_mr(ib_mr);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ib_mr->device);
@@ -1169,7 +1172,8 @@ static void ocrdma_del_qpn_map(struct ocrdma_dev *dev, struct ocrdma_qp *qp)
 }
 
 static int ocrdma_check_qp_params(struct ib_pd *ibpd, struct ocrdma_dev *dev,
-				  struct ib_qp_init_attr *attrs)
+				  struct ib_qp_init_attr *attrs,
+				  struct ib_ucontext *ucontext)
 {
 	if ((attrs->qp_type != IB_QPT_GSI) &&
 	    (attrs->qp_type != IB_QPT_RC) &&
@@ -1217,7 +1221,7 @@ static int ocrdma_check_qp_params(struct ib_pd *ibpd, struct ocrdma_dev *dev,
 		return -EINVAL;
 	}
 	/* unprivileged user space cannot create special QP */
-	if (ibpd->uobject && attrs->qp_type == IB_QPT_GSI) {
+	if (ucontext && attrs->qp_type == IB_QPT_GSI) {
 		pr_err
 		    ("%s(%d) Userspace can't create special QPs of type=0x%x\n",
 		     __func__, dev->id, attrs->qp_type);
@@ -1365,7 +1369,8 @@ static void ocrdma_store_gsi_qp_cq(struct ocrdma_dev *dev,
 
 struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 			       struct ib_qp_init_attr *attrs,
-			       struct ib_udata *udata)
+			       struct ib_udata *udata,
+			       struct ib_uobject *uobject)
 {
 	int status;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
@@ -1374,7 +1379,7 @@ struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 	struct ocrdma_create_qp_ureq ureq;
 	u16 dpp_credit_lmt, dpp_offset;
 
-	status = ocrdma_check_qp_params(ibpd, dev, attrs);
+	status = ocrdma_check_qp_params(ibpd, dev, attrs, uobject->context);
 	if (status)
 		goto gen_err;
 
@@ -1742,7 +1747,7 @@ void ocrdma_del_flush_qp(struct ocrdma_qp *qp)
 	spin_unlock_irqrestore(&dev->flush_q_lock, flags);
 }
 
-int ocrdma_destroy_qp(struct ib_qp *ibqp)
+int ocrdma_destroy_qp(struct ib_qp *ibqp, struct ib_uobject *uobject)
 {
 	struct ocrdma_pd *pd;
 	struct ocrdma_qp *qp;
@@ -1840,7 +1845,8 @@ static int ocrdma_copy_srq_uresp(struct ocrdma_dev *dev, struct ocrdma_srq *srq,
 
 struct ib_srq *ocrdma_create_srq(struct ib_pd *ibpd,
 				 struct ib_srq_init_attr *init_attr,
-				 struct ib_udata *udata)
+				 struct ib_udata *udata,
+				 struct ib_uobject *uobject)
 {
 	int status = -ENOMEM;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
@@ -2977,7 +2983,8 @@ int ocrdma_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags cq_flags)
 
 struct ib_mr *ocrdma_alloc_mr(struct ib_pd *ibpd,
 			      enum ib_mr_type mr_type,
-			      u32 max_num_sg)
+			      u32 max_num_sg,
+			      struct ib_uobject *uobject)
 {
 	int status;
 	struct ocrdma_mr *mr;

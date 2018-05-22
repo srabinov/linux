@@ -447,13 +447,14 @@ next_mr:
 }
 
 struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
-					     int access_flags)
+					     int access_flags,
+					     struct ib_uobject *uobject)
 {
-	struct ib_ucontext *ctx = pd->ibpd.uobject->context;
 	struct mlx5_ib_mr *imr;
 	struct ib_umem *umem;
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
-	umem = ib_umem_get(ctx, 0, 0, IB_ACCESS_ON_DEMAND, 0);
+	umem = ib_umem_get(ucontext, 0, 0, IB_ACCESS_ON_DEMAND, 0);
 	if (IS_ERR(umem))
 		return ERR_CAST(umem);
 

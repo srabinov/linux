@@ -951,7 +951,8 @@ int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 
 struct ib_qp *hns_roce_create_qp(struct ib_pd *ib_pd,
 				 struct ib_qp_init_attr *init_attr,
-				 struct ib_udata *udata);
+				 struct ib_udata *udata,
+				 struct ib_uobject *uobject);
 int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		       int attr_mask, struct ib_udata *udata);
 void *get_recv_wqe(struct hns_roce_qp *hr_qp, int n);

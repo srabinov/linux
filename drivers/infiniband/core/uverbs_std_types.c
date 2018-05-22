@@ -81,7 +81,7 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 		ib_uverbs_detach_umcast(qp, uqp);
 	}
 
-	ret = ib_destroy_qp(qp);
+	ret = ib_destroy_qp_user(qp, uobject);
 	if (ret && why == RDMA_REMOVE_DESTROY)
 		return ret;
 
@@ -113,7 +113,7 @@ static int uverbs_free_wq(struct ib_uobject *uobject,
 		container_of(uobject, struct ib_uwq_object, uevent.uobject);
 	int ret;
 
-	ret = ib_destroy_wq(wq);
+	ret = ib_destroy_wq(wq, uobject);
 	if (!ret || why != RDMA_REMOVE_DESTROY)
 		ib_uverbs_release_uevent(uobject->context->ufile, &uwq->uevent);
 	return ret;
@@ -171,7 +171,7 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 	if (why == RDMA_REMOVE_DESTROY && rdma_restrack_usecnt(&pd->res))
 		return -EBUSY;
 
-	ib_dealloc_pd((struct ib_pd *)uobject->object);
+	ib_dealloc_pd_user((struct ib_pd *)uobject->object, uobject);
 	return 0;
 }
 

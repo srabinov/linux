@@ -316,7 +316,7 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 	if (!rdma_restrack_get(&pd->res))
 		return ERR_PTR(-EINVAL);
 
-	qp = dev->create_qp(pd, attr, udata);
+	qp = dev->create_qp(pd, attr, udata, uobj);
 	if (IS_ERR(qp)) {
 		rdma_restrack_put(&pd->res);
 		return qp;
