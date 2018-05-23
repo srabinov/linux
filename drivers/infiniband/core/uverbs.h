@@ -209,6 +209,11 @@ struct ib_uflow_object {
 	struct ib_uflow_resources	*resources;
 };
 
+struct ib_umr_object {
+	struct ib_uobject       uobject;
+	struct ib_uobject      *pduobj;
+};
+
 extern const struct file_operations uverbs_event_fops;
 void ib_uverbs_init_event_queue(struct ib_uverbs_event_queue *ev_queue);
 struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file,

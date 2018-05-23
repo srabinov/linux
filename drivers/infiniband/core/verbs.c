@@ -52,6 +52,7 @@
 #include <rdma/rw.h>
 
 #include "core_priv.h"
+#include "uverbs.h"
 
 static int ib_resolve_eth_dmac(struct ib_device *device,
 			       struct rdma_ah_attr *ah_attr);
@@ -1663,14 +1664,20 @@ EXPORT_SYMBOL(ib_resize_cq);
 int ib_dereg_mr_user(struct ib_mr *mr,
 		     struct ib_uobject *uobject)
 {
+	struct ib_umr_object *umrobj = uobject ?
+		container_of(uobject, struct ib_umr_object, uobject) : NULL;
 	struct ib_pd *pd = mr->pd;
 	struct ib_dm *dm = mr->dm;
-	int ret;
+	int ret, val;
 
 	rdma_restrack_del(&mr->res);
 	ret = mr->device->dereg_mr(mr, uobject);
 	if (!ret) {
 		rdma_restrack_put(&pd->res);
+		if (umrobj) {
+			val = atomic_dec_return(&umrobj->pduobj->obj_usecnt);
+			WARN_ONCE(val < 2, "usecnt = %d", val);
+		}
 		if (dm)
 			atomic_dec(&dm->usecnt);
 	}
@@ -1695,6 +1702,10 @@ EXPORT_SYMBOL(ib_dereg_mr);
  * Memory registeration page/sg lists must not exceed max_num_sg.
  * For mr_type IB_MR_TYPE_MEM_REG, the total length cannot exceed
  * max_num_sg * used_page_size.
+ *
+ * This function must never be called from uverbs! ib_pd is assumed
+ * as kernel object and thus we do not manipulate the PD uobject
+ * refcount here.
  *
  */
 struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
