@@ -136,14 +136,22 @@ static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
 static void ib_uverbs_add_one(struct ib_device *device);
 static void ib_uverbs_remove_one(struct ib_device *device, void *client_data);
 
-int uverbs_dealloc_mw(struct ib_mw *mw)
+int uverbs_dealloc_mw(struct ib_mw *mw,
+		      struct ib_uobject *uobject)
 {
 	struct ib_pd *pd = mw->pd;
-	int ret;
+	int ret, val;
+	struct ib_umw_object *umwobj =  uobject ?
+		container_of(uobject, struct ib_umw_object, uobject) : NULL;
 
 	ret = mw->device->dealloc_mw(mw);
-	if (!ret)
+	if (!ret) {
 		rdma_restrack_put(&pd->res);
+		if (umwobj) {
+			val = atomic_dec_return(&umwobj->pduobj->obj_usecnt);
+			WARN_ONCE(val < 2, "usecnt = %d", val);
+		}
+	}
 	return ret;
 }
 

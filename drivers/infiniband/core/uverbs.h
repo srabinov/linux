@@ -214,6 +214,11 @@ struct ib_umr_object {
 	struct ib_uobject      *pduobj;
 };
 
+struct ib_umw_object {
+	struct ib_uobject       uobject;
+	struct ib_uobject      *pduobj;
+};
+
 extern const struct file_operations uverbs_event_fops;
 void ib_uverbs_init_event_queue(struct ib_uverbs_event_queue *ev_queue);
 struct file *ib_uverbs_alloc_async_event_file(struct ib_uverbs_file *uverbs_file,
@@ -238,7 +243,7 @@ void ib_uverbs_event_handler(struct ib_event_handler *handler,
 int ib_uverbs_dealloc_xrcd(struct ib_uverbs_device *dev, struct ib_xrcd *xrcd,
 			   enum rdma_remove_reason why);
 
-int uverbs_dealloc_mw(struct ib_mw *mw);
+int uverbs_dealloc_mw(struct ib_mw *mw, struct ib_uobject *uobject);
 void ib_uverbs_detach_umcast(struct ib_qp *qp,
 			     struct ib_uqp_object *uobj);
 

@@ -63,7 +63,7 @@ static int uverbs_free_flow(struct ib_uobject *uobject,
 static int uverbs_free_mw(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
-	return uverbs_dealloc_mw((struct ib_mw *)uobject->object);
+	return uverbs_dealloc_mw((struct ib_mw *)uobject->object, uobject);
 }
 
 static int uverbs_free_qp(struct ib_uobject *uobject,
@@ -257,7 +257,9 @@ DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_QP,
 						      uverbs_free_qp));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_MW,
-			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_mw));
+			    &UVERBS_TYPE_ALLOC_IDR_SZ(
+				sizeof(struct ib_umw_object), 0,
+				uverbs_free_mw));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_SRQ,
 			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_usrq_object), 0,
