@@ -3174,6 +3174,14 @@ int ib_query_srq(struct ib_srq *srq,
 		 struct ib_srq_attr *srq_attr);
 
 /**
+ * ib_destroy_srq_user - Destroys the specified SRQ.
+ * @srq: The SRQ to destroy.
+ * @uobject: User SRQ object, NULL if none.
+ */
+int ib_destroy_srq_user(struct ib_srq *srq,
+		        struct ib_uobject *uobject);
+
+/**
  * ib_destroy_srq - Destroys the specified SRQ.
  * @srq: The SRQ to destroy.
  */

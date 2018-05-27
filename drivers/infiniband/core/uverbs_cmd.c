@@ -3711,6 +3711,7 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 		ret = -EINVAL;
 		goto err_put_cq;
 	}
+	obj->pduobj = pduobj;
 	pd = pduobj->object;
 
 	if (!rdma_restrack_get(&pd->res)) {
@@ -3751,6 +3752,7 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 		atomic_inc(&attr.ext.xrc.xrcd->usecnt);
 	}
 
+	atomic_inc(&pduobj->obj_usecnt);
 	atomic_set(&srq->usecnt, 0);
 
 	obj->uevent.uobject.object = srq;

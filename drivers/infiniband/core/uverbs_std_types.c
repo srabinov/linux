@@ -128,7 +128,7 @@ static int uverbs_free_srq(struct ib_uobject *uobject,
 	enum ib_srq_type  srq_type = srq->srq_type;
 	int ret;
 
-	ret = ib_destroy_srq(srq);
+	ret = ib_destroy_srq_user(srq, uobject);
 
 	if (ret && why == RDMA_REMOVE_DESTROY)
 		return ret;
