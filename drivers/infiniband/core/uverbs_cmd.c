@@ -1515,6 +1515,7 @@ static int create_qp(struct ib_uverbs_file *file,
 			ret = -EINVAL;
 			goto err_put;
 		}
+		obj->pduobj = pduobj;
 		pd = pduobj->object;
 
 		device = pd->device;
@@ -1600,6 +1601,8 @@ static int create_qp(struct ib_uverbs_file *file,
 		qp->qp_context	  = attr.qp_context;
 		qp->qp_type	  = attr.qp_type;
 		atomic_set(&qp->usecnt, 0);
+		if (pduobj)
+			atomic_inc(&pduobj->obj_usecnt);
 		qp->port = 0;
 		if (attr.send_cq)
 			atomic_inc(&attr.send_cq->usecnt);

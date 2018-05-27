@@ -188,6 +188,7 @@ struct ib_uqp_object {
 	struct mutex		mcast_lock;
 	struct list_head 	mcast_list;
 	struct ib_uxrcd_object *uxrcd;
+	struct ib_uobject      *pduobj;
 };
 
 struct ib_uwq_object {
