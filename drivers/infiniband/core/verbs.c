@@ -1999,9 +1999,19 @@ EXPORT_SYMBOL(ib_create_wq);
 int ib_destroy_wq(struct ib_wq *wq,
 		  struct ib_uobject *uobject)
 {
-	int err;
+	int err, val;
 	struct ib_cq *cq = wq->cq;
 	struct ib_pd *pd = wq->pd;
+	struct ib_uwq_object *uwqobj = NULL;
+	struct ib_uevent_object *uevent = NULL;
+	struct ib_uobject *pduobj;
+
+	if (uobject)
+		uevent = container_of(uobject, struct ib_uevent_object,
+				      uobject);
+
+	if (uevent)
+		uwqobj = container_of(uevent, struct ib_uwq_object, uevent);
 
 	if (atomic_read(&wq->usecnt))
 		return -EBUSY;
@@ -2009,6 +2019,11 @@ int ib_destroy_wq(struct ib_wq *wq,
 	err = wq->device->destroy_wq(wq, uobject);
 	if (!err) {
 		rdma_restrack_put(&pd->res);
+		if (uwqobj) {
+			pduobj = uwqobj->pduobj;
+			val = atomic_dec_return(&pduobj->obj_usecnt);
+			WARN_ONCE(val < 2, "usecnt = %d", val);
+		}
 		atomic_dec(&cq->usecnt);
 	}
 	return err;

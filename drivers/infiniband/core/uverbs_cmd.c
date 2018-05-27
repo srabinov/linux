@@ -3096,12 +3096,14 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 		err = -EINVAL;
 		goto err_uobj;
 	}
+	obj->pduobj = pduobj;
 	pd = pduobj->object;
 
 	if (!rdma_restrack_get(&pd->res)) {
 		err = -EINVAL;
 		goto err_put_pd;
 	}
+	atomic_inc(&pduobj->obj_usecnt);
 
 	cq = uobj_get_obj_read(cq, UVERBS_OBJECT_CQ, cmd.cq_handle, file->ucontext);
 	if (!cq) {
@@ -3165,6 +3167,7 @@ err_copy:
 err_put_cq:
 	uobj_put_obj_read(cq);
 err_res:
+	atomic_dec(&pduobj->obj_usecnt);
 	rdma_restrack_put(&pd->res);
 err_put_pd:
 	uobj_put_read(pduobj);
