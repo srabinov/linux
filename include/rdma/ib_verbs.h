@@ -3120,6 +3120,13 @@ int rdma_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int rdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 
 /**
+ * rdma_destroy_ah_user - Destroys an address handle.
+ * @ah: The address handle to destroy.
+ * @uobject: User AH object, NULL if none.
+ */
+int rdma_destroy_ah_user(struct ib_ah *ah, struct ib_uobject *uobject);
+
+/**
  * rdma_destroy_ah - Destroys an address handle.
  * @ah: The address handle to destroy.
  */

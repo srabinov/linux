@@ -2597,12 +2597,12 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 {
 	struct ib_uverbs_create_ah	 cmd;
 	struct ib_uverbs_create_ah_resp	 resp;
-	struct ib_uobject		*uobj;
+	struct ib_uah_object		*uahobj;
 	struct ib_pd			*pd;
 	struct ib_ah			*ah;
-	struct rdma_ah_attr		attr;
-	int ret;
-	struct ib_udata                   udata;
+	struct rdma_ah_attr		 attr;
+	int				 ret;
+	struct ib_udata                  udata;
 	struct ib_uobject		*pduobj;
 
 	if (out_len < sizeof resp)
@@ -2619,16 +2619,19 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 		   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
 		   out_len - sizeof(resp));
 
-	uobj  = uobj_alloc(UVERBS_OBJECT_AH, file->ucontext);
-	if (IS_ERR(uobj))
-		return PTR_ERR(uobj);
+	uahobj = (struct ib_uah_object *)
+		uobj_alloc(UVERBS_OBJECT_AH, file->ucontext);
+	if (IS_ERR(uahobj))
+		return PTR_ERR(uahobj);
 
 	pduobj = uobj_get_read(UVERBS_OBJECT_PD, cmd.pd_handle, file->ucontext);
 	if (!pduobj) {
 		ret = -EINVAL;
 		goto err;
 	}
+	uahobj->pduobj = pduobj;
 	pd = pduobj->object;
+	atomic_inc(&pduobj->obj_usecnt);
 
 	attr.type = rdma_ah_find_type(ib_dev, cmd.attr.port_num);
 	rdma_ah_set_make_grd(&attr, false);
@@ -2648,17 +2651,17 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 		rdma_ah_set_ah_flags(&attr, 0);
 	}
 
-	ah = rdma_create_user_ah(pd, &attr, &udata, uobj);
+	ah = rdma_create_user_ah(pd, &attr, &udata, &uahobj->uobject);
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
 		goto err_put;
 	}
 
-	ah->uobject  = uobj;
-	uobj->user_handle = cmd.user_handle;
-	uobj->object = ah;
+	ah->uobject  = &uahobj->uobject;
+	uahobj->uobject.user_handle = cmd.user_handle;
+	uahobj->uobject.object = ah;
 
-	resp.ah_handle = uobj->id;
+	resp.ah_handle = uahobj->uobject.id;
 
 	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
 		ret = -EFAULT;
@@ -2666,7 +2669,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	}
 
 	uobj_put_read(pduobj);
-	uobj_alloc_commit(uobj);
+	uobj_alloc_commit(&uahobj->uobject);
 
 	return in_len;
 
@@ -2677,7 +2680,7 @@ err_put:
 	uobj_put_read(pduobj);
 
 err:
-	uobj_alloc_abort(uobj);
+	uobj_alloc_abort(&uahobj->uobject);
 	return ret;
 }
 

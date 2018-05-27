@@ -42,7 +42,7 @@
 static int uverbs_free_ah(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
-	return rdma_destroy_ah((struct ib_ah *)uobject->object);
+	return rdma_destroy_ah_user((struct ib_ah *)uobject->object, uobject);
 }
 
 static int uverbs_free_flow(struct ib_uobject *uobject,
@@ -266,7 +266,8 @@ DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_SRQ,
 						      uverbs_free_srq));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_AH,
-			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_ah));
+		&UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uah_object), 0,
+					  uverbs_free_ah));
 
 DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_FLOW,
 			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uflow_object),

@@ -355,7 +355,9 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 				     struct ib_udata *udata,
 				     struct ib_uobject *uobject)
 {
-	struct ib_ah *ah;
+	struct ib_uah_object	*uahobj;
+	struct ib_uobject	*pduobj;
+	struct ib_ah		*ah;
 
 	if (!rdma_restrack_get(&pd->res))
 		return ERR_PTR(-EINVAL);
@@ -367,12 +369,24 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 		ah->pd      = pd;
 		ah->uobject = NULL;
 		ah->type    = ah_attr->type;
+
+		if (uobject) {
+			uahobj = container_of(uobject, struct ib_uah_object,
+					      uobject);
+			pduobj = &uahobj->uobject;
+			atomic_inc(&pduobj->obj_usecnt);
+		}
 	} else
 		rdma_restrack_put(&pd->res);
 
 	return ah;
 }
 
+/* 
+ * NOTE:
+ * This function should never be called from uverbs. It is for kernel only
+ * AH objects.
+ */
 struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
 {
 	return _rdma_create_ah(pd, ah_attr, NULL, NULL);
@@ -696,17 +710,30 @@ int rdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr)
 }
 EXPORT_SYMBOL(rdma_query_ah);
 
-int rdma_destroy_ah(struct ib_ah *ah)
+int rdma_destroy_ah_user(struct ib_ah *ah, struct ib_uobject *uobject)
 {
 	struct ib_pd *pd;
-	int ret;
+	int ret, val;
+	struct ib_uah_object *uahobj = uobject ?
+		container_of(uobject, struct ib_uah_object, uobject) : NULL;
 
 	pd = ah->pd;
 	ret = ah->device->destroy_ah(ah);
-	if (!ret)
+	if (!ret) {
 		rdma_restrack_put(&pd->res);
+		if (uahobj) {
+			val = atomic_dec_return(&uahobj->uobject.obj_usecnt);
+			WARN_ONCE(val < 2, "usecnt = %d", val);
+		}
+	}
 
 	return ret;
+}
+EXPORT_SYMBOL(rdma_destroy_ah_user);
+
+int rdma_destroy_ah(struct ib_ah *ah)
+{
+	return rdma_destroy_ah_user(ah, NULL);
 }
 EXPORT_SYMBOL(rdma_destroy_ah);
 
