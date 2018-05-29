@@ -106,6 +106,13 @@ enum {
 	IB_USER_VERBS_EX_CMD_MODIFY_CQ
 };
 
+enum {
+	VERBS_NULL_PD           = (uint32_t)(-1),
+	VERBS_NULL_FD           = (uint32_t)(-1),
+	VERBS_IMPORT_OFF        = 0,
+	VERBS_IMPORT_ON         = 1,
+};
+
 /*
  * Make sure that all structs defined in this file remain laid out so
  * that they pack the same way on 32-bit and 64-bit architectures (to
@@ -305,6 +312,10 @@ struct ib_uverbs_query_port_resp {
 
 struct ib_uverbs_alloc_pd {
 	__aligned_u64 response;
+	__u32 fd;
+	__u32 pd_handle;
+	__u8  import;
+	__u8  reserved[7];
 	__aligned_u64 driver_data[0];
 };
 

@@ -307,9 +307,11 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	struct ib_uverbs_alloc_pd      cmd;
 	struct ib_uverbs_alloc_pd_resp resp;
 	struct ib_udata                udata;
-	struct ib_uobject             *uobj;
-	struct ib_pd                  *pd;
-	int                            ret;
+	struct ib_uobject             *uobj, *suobj = NULL;
+	struct ib_pd                  *pd, *spd = NULL;
+	int                            ret = -EINVAL;
+	struct file		      *sfile = NULL;
+	struct ib_uverbs_file	      *sufile;
 
 	if (out_len < sizeof resp)
 		return -ENOSPC;
@@ -326,10 +328,46 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	pd = ib_dev->alloc_pd(ib_dev, uobj, &udata);
+	if (cmd.import == VERBS_IMPORT_ON) {
+		sfile = fget(cmd.fd);
+		if (!sfile) {
+			ret = -EINVAL;
+			goto err;
+		}
+
+		/* check uverbs ops exist */
+		if (sfile->f_op != file->filp->f_op) {
+			ret = -EINVAL;
+			goto err_fput;
+		}
+
+		sufile = sfile->private_data;
+
+		/* check that files point to same device */
+		if (sufile->device != file->device) {
+			ret = -EINVAL;
+			goto err_fput;
+		}
+
+		suobj = uobj_get_read(UVERBS_OBJECT_PD, cmd.pd_handle,
+				      sufile->ucontext);
+		if (IS_ERR(suobj)) {
+			ret = -EINVAL;
+			goto err_fput;
+		}
+
+		if (suobj->def->id != UVERBS_OBJECT_PD) {
+			ret = -EINVAL;
+			goto err_put_read;
+		}
+
+		spd = suobj->object;
+	}
+
+	pd = ib_dev->alloc_pd(ib_dev, uobj, &udata, spd);
 	if (IS_ERR(pd)) {
 		ret = PTR_ERR(pd);
-		goto err;
+		goto err_put_read;
 	}
 
 	pd->device  = ib_dev;
@@ -340,7 +378,12 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	resp.pd_handle = uobj->id;
 	pd->res.type = RDMA_RESTRACK_PD;
 	pd->res.user = true;
-	rdma_restrack_add(&pd->res);
+
+	if (spd) {
+		if (!rdma_restrack_get(&pd->res))
+			goto err_copy;
+	} else
+		rdma_restrack_add(&pd->res);
 
 	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
 		ret = -EFAULT;
@@ -349,10 +392,24 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 
 	uobj_alloc_commit(uobj);
 
+	if (suobj)
+		uobj_put_read(suobj);
+
+	if (sfile)
+		fput(sfile);
+
 	return in_len;
 
 err_copy:
 	ib_dealloc_pd_user(pd, uobj);
+
+err_put_read:
+	if (suobj)
+		uobj_put_read(suobj);
+
+err_fput:
+	if (sfile)
+		fput(sfile);
 
 err:
 	uobj_alloc_abort(uobj);
@@ -645,6 +702,7 @@ ssize_t ib_uverbs_export_to_fd(struct ib_uverbs_file *file,
 	struct rdma_restrack_entry *res = NULL;
 	struct file *filep;
 	int ret = -EFAULT;
+	struct ib_pd *ibpd;
 
 	if (out_len < sizeof(resp))
 		return -ENOSPC;
@@ -682,6 +740,23 @@ ssize_t ib_uverbs_export_to_fd(struct ib_uverbs_file *file,
 	 * - get pointer to ib_xxx res for the below common code
 	 */
 	switch (cmd.type) {
+	case UVERBS_OBJECT_PD:
+		src_uobj = uobj_get_read(UVERBS_OBJECT_PD, cmd.handle,
+					 file->ucontext);
+		if (!src_uobj || src_uobj->def->id != UVERBS_OBJECT_PD) {
+			pr_warn("%s: pd: invalid handle %d\n", __func__,
+				cmd.handle);
+			ret = -EINVAL;
+			goto uobj;
+		}
+		dst_uobj = uobj_alloc(UVERBS_OBJECT_PD, dst_file->ucontext);
+		if (!dst_uobj) {
+			ret = -ENOMEM;
+			goto uobj;
+		}
+		ibpd = (struct ib_pd *)(src_uobj->object);
+		res = &ibpd->res;
+		break;
 	default:
 		pr_warn("%s: invalid obj type %d\n", __func__, cmd.type);
 		ret = -EINVAL;

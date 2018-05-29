@@ -447,7 +447,8 @@ int qedr_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 }
 
 struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,
-			    struct ib_uobject *uobject, struct ib_udata *udata)
+			    struct ib_uobject *uobject, struct ib_udata *udata,
+			    struct ib_pd *ibpd)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibdev);
 	struct qedr_pd *pd;
@@ -457,6 +458,10 @@ struct ib_pd *qedr_alloc_pd(struct ib_device *ibdev,
 
 	DP_DEBUG(dev, QEDR_MSG_INIT, "Function called from: %s\n",
 		 context ? "User Lib" : "Kernel");
+
+	/* share of pd is not supported for this HW! */
+	if (ibpd)
+		return ERR_PTR(-EINVAL);
 
 	if (!dev->rdma_ctx) {
 		DP_ERR(dev, "invalid RDMA context\n");

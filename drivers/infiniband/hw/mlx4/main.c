@@ -1324,19 +1324,24 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 
 static struct ib_pd *mlx4_ib_alloc_pd(struct ib_device *ibdev,
 				      struct ib_uobject *uobject,
-				      struct ib_udata *udata)
+				      struct ib_udata *udata,
+				      struct ib_pd *ibpd)
 {
 	struct mlx4_ib_pd *pd;
 	int err;
 
-	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return ERR_PTR(-ENOMEM);
+	if (ibpd)
+		pd = container_of(ibpd, struct mlx4_ib_pd, ibpd);
+	else {
+		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
+		if (!pd)
+			return ERR_PTR(-ENOMEM);
 
-	err = mlx4_pd_alloc(to_mdev(ibdev)->dev, &pd->pdn);
-	if (err) {
-		kfree(pd);
-		return ERR_PTR(err);
+		err = mlx4_pd_alloc(to_mdev(ibdev)->dev, &pd->pdn);
+		if (err) {
+			kfree(pd);
+			return ERR_PTR(err);
+		}
 	}
 
 	if (uobject)

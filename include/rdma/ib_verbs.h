@@ -2295,7 +2295,8 @@ struct ib_device {
 					   struct vm_area_struct *vma);
 	struct ib_pd *             (*alloc_pd)(struct ib_device *device,
 					       struct ib_uobject *uobject,
-					       struct ib_udata *udata);
+					       struct ib_udata *udata,
+					       struct ib_pd *spd);
 	int                        (*dealloc_pd)(struct ib_pd *pd,
 						 struct ib_uobject *uobject);
 	struct ib_ah *             (*create_ah)(struct ib_pd *pd,

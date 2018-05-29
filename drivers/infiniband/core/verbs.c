@@ -245,7 +245,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 	int mr_access_flags = 0;
 	int ret;
 
-	pd = device->alloc_pd(device, NULL, NULL);
+	pd = device->alloc_pd(device, NULL, NULL, NULL);
 	if (IS_ERR(pd))
 		return pd;
 

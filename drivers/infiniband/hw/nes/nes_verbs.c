@@ -659,7 +659,8 @@ static int nes_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
  * nes_alloc_pd
  */
 static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
-		struct ib_uobject *uobject, struct ib_udata *udata)
+		struct ib_uobject *uobject, struct ib_udata *udata,
+		struct ib_pd *ibpd)
 {
 	struct nes_pd *nespd;
 	struct nes_vnic *nesvnic = to_nesvnic(ibdev);
@@ -674,6 +675,10 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 	nes_debug(NES_DBG_PD, "nesvnic=%p, netdev=%p %s, ibdev=%p, context=%p, netdev refcnt=%u\n",
 			nesvnic, nesdev->netdev[0], nesdev->netdev[0]->name, ibdev, context,
 			netdev_refcnt_read(nesvnic->netdev));
+
+	/* share of pd is not supported for this HW! */
+	if (ibpd)
+		return ERR_PTR(-EINVAL);
 
 	err = nes_alloc_resource(nesadapter, nesadapter->allocated_pds,
 			nesadapter->max_pd, &pd_num, &nesadapter->next_pd, NES_RESOURCE_PD);
