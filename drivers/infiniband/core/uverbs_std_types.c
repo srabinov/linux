@@ -168,10 +168,9 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 {
 	struct ib_pd *pd = uobject->object;
 
-	if (why == RDMA_REMOVE_DESTROY && rdma_restrack_usecnt(&pd->res))
-		return -EBUSY;
+	/* resource tracker decide when it's safe to delete this pd */
+	ib_dealloc_pd_user(pd, uobject);
 
-	ib_dealloc_pd_user((struct ib_pd *)uobject->object, uobject);
 	return 0;
 }
 

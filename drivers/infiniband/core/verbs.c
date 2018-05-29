@@ -308,13 +308,17 @@ EXPORT_SYMBOL(__ib_alloc_pd);
  * @pd: The protection domain to deallocate.
  * @uobject: User PD object, NULL if none.
  *
- * It is an error to call this function while any resources in the pd still
- * exist.  The caller is responsible to synchronously destroy them and
- * guarantee no new allocations will happen.
+ * if pd is shared across multiple process, we can be called here
+ * when pd resources are still taken. in that case, all processes
+ * trying to dealloc the pd back off if rdma_restrack_del return
+ * false which mean that another process dealloc this pd.
  */
 void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_uobject *uobject)
 {
 	int ret;
+
+	if (!rdma_restrack_del(&pd->res))
+		return;
 
 	if (pd->__internal_mr) {
 		ret = pd->device->dereg_mr(pd->__internal_mr, uobject);
@@ -322,11 +326,6 @@ void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_uobject *uobject)
 		pd->__internal_mr = NULL;
 	}
 
-	/* uverbs manipulates usecnt with proper locking, while the kabi
-	   requires the caller to guarantee we can't race here. */
-	WARN_ON(rdma_restrack_usecnt(&pd->res));
-
-	rdma_restrack_del(&pd->res);
 	/* Making delalloc_pd a void return is a WIP, no driver should return
 	   an error here. */
 	ret = pd->device->dealloc_pd(pd, uobject);
