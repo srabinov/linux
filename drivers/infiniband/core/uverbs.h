@@ -144,6 +144,7 @@ struct ib_uverbs_file {
 	struct ib_uverbs_async_event_file       *async_file;
 	struct list_head			list;
 	int					is_closed;
+	struct file			       *filp;
 
 	struct idr		idr;
 	/* spinlock protects write access to idr */
@@ -347,6 +348,7 @@ IB_UVERBS_DECLARE_CMD(destroy_srq);
 IB_UVERBS_DECLARE_CMD(create_xsrq);
 IB_UVERBS_DECLARE_CMD(open_xrcd);
 IB_UVERBS_DECLARE_CMD(close_xrcd);
+IB_UVERBS_DECLARE_CMD(export_to_fd);
 
 #define IB_UVERBS_DECLARE_EX_CMD(name)				\
 	int ib_uverbs_ex_##name(struct ib_uverbs_file *file,	\
