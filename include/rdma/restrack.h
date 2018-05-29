@@ -140,8 +140,12 @@ void rdma_restrack_add(struct rdma_restrack_entry *res);
  * rdma_restrack_del() - delete object from the reource tracking database
  * @res:  resource entry
  * @type: actual type of object to operate
+ *
+ * return:
+ * true  - resource was deleted by this context
+ * false - resource was deleted by other context
  */
-void rdma_restrack_del(struct rdma_restrack_entry *res);
+bool rdma_restrack_del(struct rdma_restrack_entry *res);
 
 /**
  * rdma_is_kernel_res() - check the owner of resource

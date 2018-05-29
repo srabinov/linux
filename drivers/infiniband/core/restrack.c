@@ -189,20 +189,25 @@ int rdma_restrack_usecnt(struct rdma_restrack_entry *res)
 }
 EXPORT_SYMBOL(rdma_restrack_usecnt);
 
-void rdma_restrack_del(struct rdma_restrack_entry *res)
+bool rdma_restrack_del(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev;
 
 	if (!res->valid)
-		return;
+		return false;
 
 	dev = res_to_dev(res);
 	if (!dev)
-		return;
+		return false;
 
 	rdma_restrack_put(res);
 
-	wait_for_completion(&res->comp);
+	/* shared ib_xxx objects have res count > 1. uverb context
+	 * cleanup must be able to call this function multiple times
+	 * on given ib_xxx object w/o blocking to complete it's work.
+	 */
+	if (!try_wait_for_completion(&res->comp))
+		return false;
 
 	down_write(&dev->res.rwsem);
 	hash_del(&res->node);
@@ -210,5 +215,7 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 	if (res->task)
 		put_task_struct(res->task);
 	up_write(&dev->res.rwsem);
+
+	return true;
 }
 EXPORT_SYMBOL(rdma_restrack_del);
