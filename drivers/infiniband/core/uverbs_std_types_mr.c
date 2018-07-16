@@ -92,7 +92,6 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(struct ib_device *ib_dev,
 	mr->pd      = pd;
 	mr->dm      = dm;
 	mr->uobject = uobj;
-	atomic_inc(&pd->usecnt);
 	atomic_inc(&dm->usecnt);
 
 	uobj->object = mr;
