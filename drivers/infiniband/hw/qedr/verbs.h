@@ -48,8 +48,8 @@ int qedr_dealloc_ucontext(struct ib_ucontext *);
 
 int qedr_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
 struct ib_pd *qedr_alloc_pd(struct ib_device *,
-			    struct ib_ucontext *, struct ib_udata *);
-int qedr_dealloc_pd(struct ib_pd *pd);
+			    struct ib_uobject *, struct ib_udata *);
+int qedr_dealloc_pd(struct ib_pd *pd, struct ib_uobject *uobject);
 
 struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
 			     const struct ib_cq_init_attr *attr,
@@ -59,28 +59,30 @@ int qedr_resize_cq(struct ib_cq *, int cqe, struct ib_udata *);
 int qedr_destroy_cq(struct ib_cq *);
 int qedr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
 struct ib_qp *qedr_create_qp(struct ib_pd *, struct ib_qp_init_attr *attrs,
-			     struct ib_udata *);
+			     struct ib_udata *, struct ib_uobject *uobject);
 int qedr_modify_qp(struct ib_qp *, struct ib_qp_attr *attr,
 		   int attr_mask, struct ib_udata *udata);
 int qedr_query_qp(struct ib_qp *, struct ib_qp_attr *qp_attr,
 		  int qp_attr_mask, struct ib_qp_init_attr *);
-int qedr_destroy_qp(struct ib_qp *ibqp);
+int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_uobject *uobject);
 
 struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
-			     struct ib_udata *udata);
+			     struct ib_udata *udata,
+			     struct ib_uobject *uobject);
 int qedr_destroy_ah(struct ib_ah *ibah);
 
-int qedr_dereg_mr(struct ib_mr *);
+int qedr_dereg_mr(struct ib_mr *mr, struct ib_uobject *uobject);
 struct ib_mr *qedr_get_dma_mr(struct ib_pd *, int acc);
 
 struct ib_mr *qedr_reg_user_mr(struct ib_pd *, u64 start, u64 length,
-			       u64 virt, int acc, struct ib_udata *);
+			       u64 virt, int acc, struct ib_udata *,
+			       struct ib_uobject *);
 
 int qedr_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 		   int sg_nents, unsigned int *sg_offset);
 
 struct ib_mr *qedr_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
-			    u32 max_num_sg);
+			    u32 max_num_sg, struct ib_uobject *uobject);
 int qedr_poll_cq(struct ib_cq *, int num_entries, struct ib_wc *wc);
 int qedr_post_send(struct ib_qp *, struct ib_send_wr *,
 		   struct ib_send_wr **bad_wr);

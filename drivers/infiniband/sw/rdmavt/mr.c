@@ -377,7 +377,8 @@ bail:
  */
 struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 			      u64 virt_addr, int mr_access_flags,
-			      struct ib_udata *udata)
+			      struct ib_udata *udata,
+			      struct ib_uobject *uobject)
 {
 	struct rvt_mr *mr;
 	struct ib_umem *umem;
@@ -388,7 +389,7 @@ struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (length == 0)
 		return ERR_PTR(-EINVAL);
 
-	umem = ib_umem_get(pd->uobject->context, start, length,
+	umem = ib_umem_get(uobject->context, start, length,
 			   mr_access_flags, 0);
 	if (IS_ERR(umem))
 		return (void *)umem;

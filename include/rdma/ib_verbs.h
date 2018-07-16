@@ -1557,7 +1557,6 @@ struct ib_pd {
 	u32			local_dma_lkey;
 	u32			flags;
 	struct ib_device       *device;
-	struct ib_uobject      *uobject;
 
 	u32			unsafe_global_rkey;
 
@@ -2370,12 +2369,14 @@ struct ib_device {
 	int                        (*mmap)(struct ib_ucontext *context,
 					   struct vm_area_struct *vma);
 	struct ib_pd *             (*alloc_pd)(struct ib_device *device,
-					       struct ib_ucontext *context,
+					       struct ib_uobject *uobject,
 					       struct ib_udata *udata);
-	int                        (*dealloc_pd)(struct ib_pd *pd);
+	int                        (*dealloc_pd)(struct ib_pd *pd,
+						 struct ib_uobject *uobject);
 	struct ib_ah *             (*create_ah)(struct ib_pd *pd,
 						struct rdma_ah_attr *ah_attr,
-						struct ib_udata *udata);
+						struct ib_udata *udata,
+						struct ib_uobject *uobject);
 	int                        (*modify_ah)(struct ib_ah *ah,
 						struct rdma_ah_attr *ah_attr);
 	int                        (*query_ah)(struct ib_ah *ah,
@@ -2383,7 +2384,8 @@ struct ib_device {
 	int                        (*destroy_ah)(struct ib_ah *ah);
 	struct ib_srq *            (*create_srq)(struct ib_pd *pd,
 						 struct ib_srq_init_attr *srq_init_attr,
-						 struct ib_udata *udata);
+						 struct ib_udata *udata,
+						 struct ib_uobject *uobject);
 	int                        (*modify_srq)(struct ib_srq *srq,
 						 struct ib_srq_attr *srq_attr,
 						 enum ib_srq_attr_mask srq_attr_mask,
@@ -2396,7 +2398,8 @@ struct ib_device {
 						    struct ib_recv_wr **bad_recv_wr);
 	struct ib_qp *             (*create_qp)(struct ib_pd *pd,
 						struct ib_qp_init_attr *qp_init_attr,
-						struct ib_udata *udata);
+						struct ib_udata *udata,
+						struct ib_uobject *uobject);
 	int                        (*modify_qp)(struct ib_qp *qp,
 						struct ib_qp_attr *qp_attr,
 						int qp_attr_mask,
@@ -2405,7 +2408,8 @@ struct ib_device {
 					       struct ib_qp_attr *qp_attr,
 					       int qp_attr_mask,
 					       struct ib_qp_init_attr *qp_init_attr);
-	int                        (*destroy_qp)(struct ib_qp *qp);
+	int                        (*destroy_qp)(struct ib_qp *qp,
+						 struct ib_uobject *uobject);
 	int                        (*post_send)(struct ib_qp *qp,
 						struct ib_send_wr *send_wr,
 						struct ib_send_wr **bad_send_wr);
@@ -2434,18 +2438,22 @@ struct ib_device {
 						  u64 start, u64 length,
 						  u64 virt_addr,
 						  int mr_access_flags,
-						  struct ib_udata *udata);
+						  struct ib_udata *udata,
+						  struct ib_uobject *uobject);
 	int			   (*rereg_user_mr)(struct ib_mr *mr,
 						    int flags,
 						    u64 start, u64 length,
 						    u64 virt_addr,
 						    int mr_access_flags,
 						    struct ib_pd *pd,
-						    struct ib_udata *udata);
-	int                        (*dereg_mr)(struct ib_mr *mr);
+						    struct ib_udata *udata,
+						    struct ib_uobject *uobject);
+	int                        (*dereg_mr)(struct ib_mr *mr,
+					       struct ib_uobject *uobject);
 	struct ib_mr *		   (*alloc_mr)(struct ib_pd *pd,
 					       enum ib_mr_type mr_type,
-					       u32 max_num_sg);
+					       u32 max_num_sg,
+					       struct ib_uobject *uobject);
 	int                        (*map_mr_sg)(struct ib_mr *mr,
 						struct scatterlist *sg,
 						int sg_nents,
@@ -2503,8 +2511,10 @@ struct ib_device {
 						  int type);
 	struct ib_wq *		   (*create_wq)(struct ib_pd *pd,
 						struct ib_wq_init_attr *init_attr,
-						struct ib_udata *udata);
-	int			   (*destroy_wq)(struct ib_wq *wq);
+						struct ib_udata *udata,
+						struct ib_uobject *uobject);
+	int			   (*destroy_wq)(struct ib_wq *wq,
+						 struct ib_uobject *uobject);
 	int			   (*modify_wq)(struct ib_wq *wq,
 						struct ib_wq_attr *attr,
 						u32 wq_attr_mask,
@@ -3096,6 +3106,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 		const char *caller);
 #define ib_alloc_pd(device, flags) \
 	__ib_alloc_pd((device), (flags), KBUILD_MODNAME)
+void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_uobject *uobject);
 void ib_dealloc_pd(struct ib_pd *pd);
 
 /**
@@ -3115,6 +3126,7 @@ struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr);
  * @ah_attr: The attributes of the address vector.
  * @udata: pointer to user's input output buffer information need by
  *         provider driver.
+ * @uobject: pointer to uobject (if any)
  *
  * It returns 0 on success and returns appropriate error code on error.
  * The address handle is used to reference a local or global destination
@@ -3122,7 +3134,8 @@ struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr);
  */
 struct ib_ah *rdma_create_user_ah(struct ib_pd *pd,
 				  struct rdma_ah_attr *ah_attr,
-				  struct ib_udata *udata);
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject);
 /**
  * ib_get_gids_from_rdma_hdr - Get sgid and dgid from GRH or IPv4 header
  *   work completion.
@@ -3257,6 +3270,19 @@ static inline int ib_post_srq_recv(struct ib_srq *srq,
 }
 
 /**
+ * ib_create_qp_user - Creates a QP associated with the specified protection
+ *   domain.
+ * @pd: The protection domain associated with the QP.
+ * @qp_init_attr: A list of initial attributes required to create the
+ *   QP.  If QP creation succeeds, then the attributes are updated to
+ *   the actual capabilities of the created QP.
+ * @uobject: user object of the QP, NULL if none
+ */
+struct ib_qp *ib_create_qp_user(struct ib_pd *pd,
+				struct ib_qp_init_attr *qp_init_attr,
+				struct ib_uobject *uobject);
+
+/**
  * ib_create_qp - Creates a QP associated with the specified protection
  *   domain.
  * @pd: The protection domain associated with the QP.
@@ -3311,6 +3337,14 @@ int ib_query_qp(struct ib_qp *qp,
 		struct ib_qp_attr *qp_attr,
 		int qp_attr_mask,
 		struct ib_qp_init_attr *qp_init_attr);
+
+/**
+ * ib_destroy_qp_user - Destroys the specified QP.
+ * @qp: The QP to destroy.
+ * @uobject: User QP object, NULL if none.
+ */
+int ib_destroy_qp_user(struct ib_qp *qp,
+		       struct ib_uobject *uobject);
 
 /**
  * ib_destroy_qp - Destroys the specified QP.
@@ -3690,6 +3724,17 @@ static inline void ib_dma_free_coherent(struct ib_device *dev,
 }
 
 /**
+ * ib_dereg_mr_user - Deregisters a memory region and removes it from the
+ *   HCA translation table.
+ * @mr: The memory region to deregister.
+ * @uobject: User MR object, NULL if none.
+ *
+ * This function can fail, if the memory region has memory windows bound to it.
+ */
+int ib_dereg_mr_user(struct ib_mr *mr,
+		     struct ib_uobject *uobject);
+
+/**
  * ib_dereg_mr - Deregisters a memory region and removes it from the
  *   HCA translation table.
  * @mr: The memory region to deregister.
@@ -3851,8 +3896,10 @@ struct net_device *ib_get_net_dev_by_params(struct ib_device *dev, u8 port,
 					    u16 pkey, const union ib_gid *gid,
 					    const struct sockaddr *addr);
 struct ib_wq *ib_create_wq(struct ib_pd *pd,
-			   struct ib_wq_init_attr *init_attr);
-int ib_destroy_wq(struct ib_wq *wq);
+			   struct ib_wq_init_attr *init_attr,
+			   struct ib_uobject *uobject);
+int ib_destroy_wq(struct ib_wq *wq,
+		  struct ib_uobject *uobject);
 int ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *attr,
 		 u32 wq_attr_mask);
 struct ib_rwq_ind_table *ib_create_rwq_ind_table(struct ib_device *device,

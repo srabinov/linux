@@ -403,19 +403,21 @@ static struct ib_umem *mlx4_get_umem_mr(struct ib_ucontext *context, u64 start,
 
 struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int access_flags,
-				  struct ib_udata *udata)
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject)
 {
 	struct mlx4_ib_dev *dev = to_mdev(pd->device);
 	struct mlx4_ib_mr *mr;
 	int shift;
 	int err;
 	int n;
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mr->umem = mlx4_get_umem_mr(pd->uobject->context, start, length,
+	mr->umem = mlx4_get_umem_mr(ucontext, start, length,
 				    virt_addr, access_flags);
 	if (IS_ERR(mr->umem)) {
 		err = PTR_ERR(mr->umem);
@@ -460,7 +462,8 @@ err_free:
 int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 			  u64 start, u64 length, u64 virt_addr,
 			  int mr_access_flags, struct ib_pd *pd,
-			  struct ib_udata *udata)
+			  struct ib_udata *udata,
+			  struct ib_uobject *uobject)
 {
 	struct mlx4_ib_dev *dev = to_mdev(mr->device);
 	struct mlx4_ib_mr *mmr = to_mmr(mr);
@@ -593,7 +596,8 @@ mlx4_free_priv_pages(struct mlx4_ib_mr *mr)
 	}
 }
 
-int mlx4_ib_dereg_mr(struct ib_mr *ibmr)
+int mlx4_ib_dereg_mr(struct ib_mr *ibmr,
+		     struct ib_uobject *uobject)
 {
 	struct mlx4_ib_mr *mr = to_mmr(ibmr);
 	int ret;
@@ -655,7 +659,8 @@ int mlx4_ib_dealloc_mw(struct ib_mw *ibmw)
 
 struct ib_mr *mlx4_ib_alloc_mr(struct ib_pd *pd,
 			       enum ib_mr_type mr_type,
-			       u32 max_num_sg)
+			       u32 max_num_sg,
+			       struct ib_uobject *uobject)
 {
 	struct mlx4_ib_dev *dev = to_mdev(pd->device);
 	struct mlx4_ib_mr *mr;

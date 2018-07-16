@@ -60,7 +60,8 @@ MODULE_PARM_DESC(fastreg_support, "Advertise fastreg support (default=1)");
 
 static struct ib_ah *c4iw_ah_create(struct ib_pd *pd,
 				    struct rdma_ah_attr *ah_attr,
-				    struct ib_udata *udata)
+				    struct ib_udata *udata,
+				    struct ib_uobject *uobject)
 
 {
 	return ERR_PTR(-ENOSYS);
@@ -244,7 +245,7 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	return ret;
 }
 
-static int c4iw_deallocate_pd(struct ib_pd *pd)
+static int c4iw_deallocate_pd(struct ib_pd *pd, struct ib_uobject *uobject)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_pd *php;
@@ -261,7 +262,7 @@ static int c4iw_deallocate_pd(struct ib_pd *pd)
 }
 
 static struct ib_pd *c4iw_allocate_pd(struct ib_device *ibdev,
-				      struct ib_ucontext *context,
+				      struct ib_uobject *uobject,
 				      struct ib_udata *udata)
 {
 	struct c4iw_pd *php;
@@ -280,11 +281,11 @@ static struct ib_pd *c4iw_allocate_pd(struct ib_device *ibdev,
 	}
 	php->pdid = pdid;
 	php->rhp = rhp;
-	if (context) {
+	if (uobject) {
 		struct c4iw_alloc_pd_resp uresp = {.pdid = php->pdid};
 
 		if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
-			c4iw_deallocate_pd(&php->ibpd);
+			c4iw_deallocate_pd(&php->ibpd, uobject);
 			return ERR_PTR(-EFAULT);
 		}
 	}

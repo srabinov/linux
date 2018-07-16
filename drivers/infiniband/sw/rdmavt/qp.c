@@ -765,7 +765,8 @@ static void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
  */
 struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			    struct ib_qp_init_attr *init_attr,
-			    struct ib_udata *udata)
+			    struct ib_udata *udata,
+			    struct ib_uobject *uobject)
 {
 	struct rvt_qp *qp;
 	int err;
@@ -939,7 +940,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			u32 s = sizeof(struct rvt_rwq) + qp->r_rq.size * sz;
 
 			qp->ip = rvt_create_mmap_info(rdi, s,
-						      ibpd->uobject->context,
+						      uobject->context,
 						      qp->r_rq.wq);
 			if (!qp->ip) {
 				ret = ERR_PTR(-ENOMEM);

@@ -374,7 +374,7 @@ static int mthca_mmap_uar(struct ib_ucontext *context,
 }
 
 static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev,
-				    struct ib_ucontext *context,
+				    struct ib_uobject *uobject,
 				    struct ib_udata *udata)
 {
 	struct mthca_pd *pd;
@@ -384,13 +384,13 @@ static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev,
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
-	err = mthca_pd_alloc(to_mdev(ibdev), !context, pd);
+	err = mthca_pd_alloc(to_mdev(ibdev), !uobject, pd);
 	if (err) {
 		kfree(pd);
 		return ERR_PTR(err);
 	}
 
-	if (context) {
+	if (uobject) {
 		if (ib_copy_to_udata(udata, &pd->pd_num, sizeof (__u32))) {
 			mthca_pd_free(to_mdev(ibdev), pd);
 			kfree(pd);
@@ -401,7 +401,7 @@ static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev,
 	return &pd->ibpd;
 }
 
-static int mthca_dealloc_pd(struct ib_pd *pd)
+static int mthca_dealloc_pd(struct ib_pd *pd, struct ib_uobject *uobject)
 {
 	mthca_pd_free(to_mdev(pd->device), to_mpd(pd));
 	kfree(pd);
@@ -411,7 +411,8 @@ static int mthca_dealloc_pd(struct ib_pd *pd)
 
 static struct ib_ah *mthca_ah_create(struct ib_pd *pd,
 				     struct rdma_ah_attr *ah_attr,
-				     struct ib_udata *udata)
+				     struct ib_udata *udata,
+				     struct ib_uobject *uobject)
 
 {
 	int err;
@@ -440,12 +441,14 @@ static int mthca_ah_destroy(struct ib_ah *ah)
 
 static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 				       struct ib_srq_init_attr *init_attr,
-				       struct ib_udata *udata)
+				       struct ib_udata *udata,
+				       struct ib_uobject *uobject)
 {
 	struct mthca_create_srq ucmd;
 	struct mthca_ucontext *context = NULL;
 	struct mthca_srq *srq;
 	int err;
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
 	if (init_attr->srq_type != IB_SRQT_BASIC)
 		return ERR_PTR(-ENOSYS);
@@ -454,8 +457,8 @@ static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 	if (!srq)
 		return ERR_PTR(-ENOMEM);
 
-	if (pd->uobject) {
-		context = to_mucontext(pd->uobject->context);
+	if (uobject) {
+		context = to_mucontext(ucontext);
 
 		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
 			err = -EFAULT;
@@ -474,9 +477,9 @@ static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 	}
 
 	err = mthca_alloc_srq(to_mdev(pd->device), to_mpd(pd),
-			      &init_attr->attr, srq);
+			      &init_attr->attr, srq, ucontext);
 
-	if (err && pd->uobject)
+	if (err && ucontext)
 		mthca_unmap_user_db(to_mdev(pd->device), &context->uar,
 				    context->db_tab, ucmd.db_index);
 
@@ -516,11 +519,13 @@ static int mthca_destroy_srq(struct ib_srq *srq)
 
 static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 				     struct ib_qp_init_attr *init_attr,
-				     struct ib_udata *udata)
+				     struct ib_udata *udata,
+				     struct ib_uobject *uobject)
 {
 	struct mthca_create_qp ucmd;
 	struct mthca_qp *qp;
 	int err;
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
 	if (init_attr->create_flags)
 		return ERR_PTR(-EINVAL);
@@ -536,8 +541,8 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
 
-		if (pd->uobject) {
-			context = to_mucontext(pd->uobject->context);
+		if (uobject) {
+			context = to_mucontext(uobject->context);
 
 			if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
 				kfree(qp);
@@ -573,10 +578,10 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 				     to_mcq(init_attr->send_cq),
 				     to_mcq(init_attr->recv_cq),
 				     init_attr->qp_type, init_attr->sq_sig_type,
-				     &init_attr->cap, qp);
+				     &init_attr->cap, qp, ucontext);
 
-		if (err && pd->uobject) {
-			context = to_mucontext(pd->uobject->context);
+		if (err && ucontext) {
+			context = to_mucontext(ucontext);
 
 			mthca_unmap_user_db(to_mdev(pd->device),
 					    &context->uar,
@@ -595,7 +600,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	case IB_QPT_GSI:
 	{
 		/* Don't allow userspace to create special QPs */
-		if (pd->uobject)
+		if (ucontext)
 			return ERR_PTR(-EINVAL);
 
 		qp = kmalloc(sizeof (struct mthca_sqp), GFP_KERNEL);
@@ -609,7 +614,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 				      to_mcq(init_attr->recv_cq),
 				      init_attr->sq_sig_type, &init_attr->cap,
 				      qp->ibqp.qp_num, init_attr->port_num,
-				      to_msqp(qp));
+				      to_msqp(qp), NULL);
 		break;
 	}
 	default:
@@ -631,7 +636,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	return &qp->ibqp;
 }
 
-static int mthca_destroy_qp(struct ib_qp *qp)
+static int mthca_destroy_qp(struct ib_qp *qp, struct ib_uobject *uobject)
 {
 	if (qp->uobject) {
 		mthca_unmap_user_db(to_mdev(qp->device),
@@ -902,7 +907,9 @@ static struct ib_mr *mthca_get_dma_mr(struct ib_pd *pd, int acc)
 }
 
 static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
-				       u64 virt, int acc, struct ib_udata *udata)
+				       u64 virt, int acc,
+				       struct ib_udata *udata,
+				       struct ib_uobject *uobject)
 {
 	struct mthca_dev *dev = to_mdev(pd->device);
 	struct scatterlist *sg;
@@ -913,14 +920,15 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	int i, k, entry;
 	int err = 0;
 	int write_mtt_size;
+	struct ib_ucontext *ucontext = uobject ? uobject->context : NULL;
 
 	if (udata->inlen < sizeof ucmd) {
-		if (!to_mucontext(pd->uobject->context)->reg_mr_warned) {
+		if (!to_mucontext(ucontext)->reg_mr_warned) {
 			mthca_warn(dev, "Process '%s' did not pass in MR attrs.\n",
 				   current->comm);
 			mthca_warn(dev, "  Update libmthca to fix this.\n");
 		}
-		++to_mucontext(pd->uobject->context)->reg_mr_warned;
+		++to_mucontext(ucontext)->reg_mr_warned;
 		ucmd.mr_attrs = 0;
 	} else if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
 		return ERR_PTR(-EFAULT);
@@ -929,7 +937,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mr->umem = ib_umem_get(pd->uobject->context, start, length, acc,
+	mr->umem = ib_umem_get(ucontext, start, length, acc,
 			       ucmd.mr_attrs & MTHCA_MR_DMASYNC);
 
 	if (IS_ERR(mr->umem)) {
@@ -1000,7 +1008,7 @@ err:
 	return ERR_PTR(err);
 }
 
-static int mthca_dereg_mr(struct ib_mr *mr)
+static int mthca_dereg_mr(struct ib_mr *mr, struct ib_uobject *uobject)
 {
 	struct mthca_mr *mmr = to_mmr(mr);
 
