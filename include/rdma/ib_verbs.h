@@ -1534,6 +1534,10 @@ struct ib_uobject {
 	struct rcu_head		rcu;		/* kfree_rcu() overhead */
 
 	const struct uverbs_object_def *def;
+
+	/* shared objects support */
+	bool				shared;	/* is this object shared? */	
+	struct rdma_restrack_entry	*res;	/* pointer to ib_x resource tracker */
 };
 
 struct ib_uobject_file {

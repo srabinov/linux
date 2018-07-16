@@ -360,7 +360,14 @@ static int __must_check remove_commit_idr_uobject(struct ib_uobject *uobj,
 	const struct uverbs_obj_idr_type *idr_type =
 		container_of(uobj->def->type_attrs, struct uverbs_obj_idr_type,
 			     type);
-	int ret = idr_type->destroy_object(uobj, why);
+	int ret = 0;
+
+	/* shared objects must have valid resource tracker pointer! */
+	BUG_ON(uobj->shared && !uobj->res);
+
+	/* only none shared objects destroy the ib_x object! */
+	if (!uobj->shared)
+		ret = idr_type->destroy_object(uobj, why);
 
 	/*
 	 * We can only fail gracefully if the user requested to destroy the
@@ -372,6 +379,10 @@ static int __must_check remove_commit_idr_uobject(struct ib_uobject *uobj,
 	ib_rdmacg_uncharge(&uobj->cg_obj, uobj->context->device,
 			   RDMACG_RESOURCE_HCA_OBJECT);
 	uverbs_idr_remove_uobj(uobj);
+
+	/* shared objects must decrement the ib_x use count! */
+	if (uobj->shared)
+		rdma_restrack_put(uobj->res);
 
 	return ret;
 }
