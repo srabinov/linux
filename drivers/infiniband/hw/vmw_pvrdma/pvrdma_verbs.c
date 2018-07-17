@@ -439,7 +439,8 @@ int pvrdma_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
  */
 struct ib_pd *pvrdma_alloc_pd(struct ib_device *ibdev,
 			      struct ib_ucontext *context,
-			      struct ib_udata *udata)
+			      struct ib_udata *udata,
+			      struct ib_pd *ibpd)
 {
 	struct pvrdma_pd *pd;
 	struct pvrdma_dev *dev = to_vdev(ibdev);
@@ -450,6 +451,10 @@ struct ib_pd *pvrdma_alloc_pd(struct ib_device *ibdev,
 	struct pvrdma_alloc_pd_resp pd_resp = {0};
 	int ret;
 	void *ptr;
+
+	/* share of pd is not supported for this HW! */
+	if (ibpd)
+		return ERR_PTR(-EINVAL);
 
 	/* Check allowed max pds */
 	if (!atomic_add_unless(&dev->num_pds, 1, dev->dsr->caps.max_pd))

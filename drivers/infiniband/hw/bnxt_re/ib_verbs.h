@@ -166,7 +166,8 @@ enum rdma_link_layer bnxt_re_get_link_layer(struct ib_device *ibdev,
 					    u8 port_num);
 struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
 			       struct ib_uobject *uobject,
-			       struct ib_udata *udata);
+			       struct ib_udata *udata,
+			       struct ib_pd *ibpd);
 int bnxt_re_dealloc_pd(struct ib_pd *pd, struct ib_uobject *uobject);
 struct ib_ah *bnxt_re_create_ah(struct ib_pd *pd,
 				struct rdma_ah_attr *ah_attr,

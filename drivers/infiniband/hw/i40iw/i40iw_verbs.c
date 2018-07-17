@@ -317,7 +317,8 @@ static void i40iw_dealloc_push_page(struct i40iw_device *iwdev, struct i40iw_sc_
  */
 static struct ib_pd *i40iw_alloc_pd(struct ib_device *ibdev,
 				    struct ib_uobject *uobject,
-				    struct ib_udata *udata)
+				    struct ib_udata *udata,
+				    struct ib_pd *ibpd)
 {
 	struct i40iw_pd *iwpd;
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
@@ -328,6 +329,10 @@ static struct ib_pd *i40iw_alloc_pd(struct ib_device *ibdev,
 	u32 pd_id = 0;
 	int err;
 	struct ib_ucontext *context = uobject ? uobject->context : NULL;
+
+	/* share of pd is not supported for this HW! */
+	if (ibpd)
+		return ERR_PTR(-EINVAL);
 
 	if (iwdev->closing)
 		return ERR_PTR(-ENODEV);

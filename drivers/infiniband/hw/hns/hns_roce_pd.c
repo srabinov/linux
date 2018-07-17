@@ -59,12 +59,17 @@ void hns_roce_cleanup_pd_table(struct hns_roce_dev *hr_dev)
 
 struct ib_pd *hns_roce_alloc_pd(struct ib_device *ib_dev,
 				struct ib_ucontext *context,
-				struct ib_udata *udata)
+				struct ib_udata *udata,
+				struct ib_pd *ibpd)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_pd *pd;
 	int ret;
+
+	/* share of pd is not supported for this HW! */
+	if (ibpd)
+		return ERR_PTR(-EINVAL);
 
 	pd = kmalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
