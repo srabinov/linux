@@ -1517,6 +1517,7 @@ struct ib_uobject {
 	/* FIXME, save memory: ufile->context == context */
 	struct ib_ucontext     *context;	/* associated user context */
 	void		       *object;		/* containing object */
+	atomic_t	       *sharecnt;	/* object share count */
 	struct list_head	list;		/* link to context's list */
 	struct ib_rdmacg_object	cg_obj;		/* rdmacg object */
 	int			id;		/* index into kernel idr */

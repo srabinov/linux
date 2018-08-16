@@ -127,6 +127,7 @@ static void assert_uverbs_usecnt(struct ib_uobject *uobj,
 static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 				  enum rdma_remove_reason reason)
 {
+	const struct uverbs_obj_type_class *type_class;
 	struct ib_uverbs_file *ufile = uobj->ufile;
 	unsigned long flags;
 	int ret;
@@ -135,7 +136,28 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 	assert_uverbs_usecnt(uobj, UVERBS_LOOKUP_WRITE);
 
 	if (uobj->object) {
-		ret = uobj->uapi_object->type_class->destroy_hw(uobj, reason);
+		type_class = uobj->uapi_object->type_class;
+		if (uobj->sharecnt) {
+			/*
+			 * For shared ib_x HW object, only the last context
+			 * holding this HW object is allowed to destroy it.
+			 * If another context still use this HW object we just
+			 * skip the HW destroy gracefully and free all the rest
+			 * of the resources.
+			 *
+			 * This cannot race with share of ib_x object because
+			 * first share is always done from the only context
+			 * that see the object and we already have all the
+			 * locking in place to sync the single context scenario
+			 * where uverbs try to access ib_x object and destroy
+			 * (eg. disassociation) kicks in.
+			 */
+			if (atomic_dec_and_test(uobj->sharecnt))
+				ret = type_class->destroy_hw(uobj, reason);
+			else
+				ret = 0;
+		} else
+			ret = type_class->destroy_hw(uobj, reason);
 		if (ret) {
 			if (ib_is_destroy_retryable(ret, reason, uobj))
 				return ret;
