@@ -95,7 +95,7 @@ int ocrdma_destroy_qp(struct ib_qp *);
 void ocrdma_del_flush_qp(struct ocrdma_qp *qp);
 
 struct ib_srq *ocrdma_create_srq(struct ib_pd *, struct ib_srq_init_attr *,
-				 struct ib_udata *);
+				 struct ib_udata *, struct ib_uobject *);
 int ocrdma_modify_srq(struct ib_srq *, struct ib_srq_attr *,
 		      enum ib_srq_attr_mask, struct ib_udata *);
 int ocrdma_query_srq(struct ib_srq *, struct ib_srq_attr *);

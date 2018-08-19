@@ -175,7 +175,8 @@ int bnxt_re_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_destroy_ah(struct ib_ah *ah);
 struct ib_srq *bnxt_re_create_srq(struct ib_pd *pd,
 				  struct ib_srq_init_attr *srq_init_attr,
-				  struct ib_udata *udata);
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject);
 int bnxt_re_modify_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr,
 		       enum ib_srq_attr_mask srq_attr_mask,
 		       struct ib_udata *udata);

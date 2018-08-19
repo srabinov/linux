@@ -74,7 +74,8 @@ void rvt_driver_srq_init(struct rvt_dev_info *rdi)
  */
 struct ib_srq *rvt_create_srq(struct ib_pd *ibpd,
 			      struct ib_srq_init_attr *srq_init_attr,
-			      struct ib_udata *udata)
+			      struct ib_udata *udata,
+			      struct ib_uobject *uobject)
 {
 	struct rvt_dev_info *dev = ib_to_rvt(ibpd->device);
 	struct rvt_srq *srq;

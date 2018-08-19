@@ -2676,7 +2676,8 @@ void c4iw_copy_wr_to_srq(struct t4_srq *srq, union t4_recv_wr *wqe, u8 len16)
 }
 
 struct ib_srq *c4iw_create_srq(struct ib_pd *pd, struct ib_srq_init_attr *attrs,
-			       struct ib_udata *udata)
+			       struct ib_udata *udata,
+			       struct ib_uobject *uobject)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_srq *srq;

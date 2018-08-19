@@ -2368,7 +2368,8 @@ struct ib_device {
 	int                        (*destroy_ah)(struct ib_ah *ah);
 	struct ib_srq *            (*create_srq)(struct ib_pd *pd,
 						 struct ib_srq_init_attr *srq_init_attr,
-						 struct ib_udata *udata);
+						 struct ib_udata *udata,
+						 struct ib_uobject *uobject);
 	int                        (*modify_srq)(struct ib_srq *srq,
 						 struct ib_srq_attr *srq_attr,
 						 enum ib_srq_attr_mask srq_attr_mask,

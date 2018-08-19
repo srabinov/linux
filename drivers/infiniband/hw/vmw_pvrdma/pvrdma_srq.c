@@ -98,7 +98,8 @@ int pvrdma_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
  */
 struct ib_srq *pvrdma_create_srq(struct ib_pd *pd,
 				 struct ib_srq_init_attr *init_attr,
-				 struct ib_udata *udata)
+				 struct ib_udata *udata,
+				 struct ib_uobject *uobject)
 {
 	struct pvrdma_srq *srq = NULL;
 	struct pvrdma_dev *dev = to_vdev(pd->device);

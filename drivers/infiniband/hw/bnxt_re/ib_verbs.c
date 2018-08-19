@@ -1381,7 +1381,8 @@ static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 
 struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
 				  struct ib_srq_init_attr *srq_init_attr,
-				  struct ib_udata *udata)
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;

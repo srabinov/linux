@@ -1840,7 +1840,8 @@ static int ocrdma_copy_srq_uresp(struct ocrdma_dev *dev, struct ocrdma_srq *srq,
 
 struct ib_srq *ocrdma_create_srq(struct ib_pd *ibpd,
 				 struct ib_srq_init_attr *init_attr,
-				 struct ib_udata *udata)
+				 struct ib_udata *udata,
+				 struct ib_uobject *uobject)
 {
 	int status = -ENOMEM;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);

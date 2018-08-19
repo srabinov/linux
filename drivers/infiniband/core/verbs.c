@@ -939,7 +939,11 @@ int rdma_destroy_ah(struct ib_ah *ah)
 }
 EXPORT_SYMBOL(rdma_destroy_ah);
 
-/* Shared receive queues */
+/*
+ * Shared receive queues.
+ * Should only be called from rdma core.
+ * Never call this function from uverbs!
+ */
 
 struct ib_srq *ib_create_srq(struct ib_pd *pd,
 			     struct ib_srq_init_attr *srq_init_attr)
@@ -949,7 +953,10 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 	if (!pd->device->create_srq)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	srq = pd->device->create_srq(pd, srq_init_attr, NULL);
+	/* Check that we are not called from uverbs... */
+	WARN_ON(!rdma_is_kernel_res(&pd->res));
+
+	srq = pd->device->create_srq(pd, srq_init_attr, NULL, NULL);
 
 	if (!IS_ERR(srq)) {
 		srq->device    	   = pd->device;

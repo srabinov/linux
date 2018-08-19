@@ -336,7 +336,8 @@ err1:
 
 static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 				     struct ib_srq_init_attr *init,
-				     struct ib_udata *udata)
+				     struct ib_udata *udata,
+				     struct ib_uobject *uobject)
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);

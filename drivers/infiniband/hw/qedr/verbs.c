@@ -1436,7 +1436,8 @@ static void qedr_idr_remove(struct qedr_dev *dev,
 
 struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 			       struct ib_srq_init_attr *init_attr,
-			       struct ib_udata *udata)
+			       struct ib_udata *udata,
+			       struct ib_uobject *uobject)
 {
 	struct qed_rdma_destroy_srq_in_params destroy_in_params;
 	struct qed_rdma_create_srq_in_params in_params = {};

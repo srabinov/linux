@@ -68,7 +68,8 @@ int qedr_destroy_qp(struct ib_qp *ibqp);
 
 struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 			       struct ib_srq_init_attr *attr,
-			       struct ib_udata *udata);
+			       struct ib_udata *udata,
+			       struct ib_uobject *uobject);
 int qedr_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		    enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int qedr_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);

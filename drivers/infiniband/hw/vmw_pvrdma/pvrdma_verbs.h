@@ -425,7 +425,8 @@ int pvrdma_destroy_ah(struct ib_ah *ah);
 
 struct ib_srq *pvrdma_create_srq(struct ib_pd *pd,
 				 struct ib_srq_init_attr *init_attr,
-				 struct ib_udata *udata);
+				 struct ib_udata *udata,
+				 struct ib_uobject *uobject);
 int pvrdma_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		      enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int pvrdma_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);

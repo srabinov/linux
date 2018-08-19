@@ -441,7 +441,8 @@ static int mthca_ah_destroy(struct ib_ah *ah)
 
 static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 				       struct ib_srq_init_attr *init_attr,
-				       struct ib_udata *udata)
+				       struct ib_udata *udata,
+				       struct ib_uobject *uobject)
 {
 	struct mthca_create_srq ucmd;
 	struct mthca_ucontext *context = NULL;

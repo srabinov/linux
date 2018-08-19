@@ -4581,7 +4581,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	attr.ext.cq = devr->c0;
 	attr.ext.xrc.xrcd = devr->x0;
 
-	devr->s0 = mlx5_ib_create_srq(devr->p0, &attr, NULL);
+	devr->s0 = mlx5_ib_create_srq(devr->p0, &attr, NULL, NULL);
 	if (IS_ERR(devr->s0)) {
 		ret = PTR_ERR(devr->s0);
 		goto error4;
@@ -4603,7 +4603,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	attr.attr.max_sge = 1;
 	attr.attr.max_wr = 1;
 	attr.srq_type = IB_SRQT_BASIC;
-	devr->s1 = mlx5_ib_create_srq(devr->p0, &attr, NULL);
+	devr->s1 = mlx5_ib_create_srq(devr->p0, &attr, NULL, NULL);
 	if (IS_ERR(devr->s1)) {
 		ret = PTR_ERR(devr->s1);
 		goto error5;
