@@ -3361,7 +3361,7 @@ fail:
 	return ERR_PTR(rc);
 }
 
-int bnxt_re_dereg_mr(struct ib_mr *ib_mr)
+int bnxt_re_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject)
 {
 	struct bnxt_re_mr *mr = container_of(ib_mr, struct bnxt_re_mr, ib_mr);
 	struct bnxt_re_dev *rdev = mr->rdev;

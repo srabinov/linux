@@ -553,7 +553,7 @@ bool rvt_ss_has_lkey(struct rvt_sge_state *ss, u32 lkey)
  *
  * Returns 0 on success.
  */
-int rvt_dereg_mr(struct ib_mr *ibmr)
+int rvt_dereg_mr(struct ib_mr *ibmr, struct ib_uobject *uobject)
 {
 	struct rvt_mr *mr = to_imr(ibmr);
 	int ret;

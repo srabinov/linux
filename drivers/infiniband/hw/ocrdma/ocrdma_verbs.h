@@ -104,7 +104,7 @@ int ocrdma_destroy_srq(struct ib_srq *);
 int ocrdma_post_srq_recv(struct ib_srq *, const struct ib_recv_wr *,
 			 const struct ib_recv_wr **bad_recv_wr);
 
-int ocrdma_dereg_mr(struct ib_mr *);
+int ocrdma_dereg_mr(struct ib_mr *, struct ib_uobject *);
 struct ib_mr *ocrdma_get_dma_mr(struct ib_pd *, int acc);
 struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *, u64 start, u64 length,
 				 u64 virt, int acc, struct ib_udata *,

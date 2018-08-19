@@ -80,7 +80,7 @@ struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
 			     struct ib_udata *udata);
 int qedr_destroy_ah(struct ib_ah *ibah);
 
-int qedr_dereg_mr(struct ib_mr *);
+int qedr_dereg_mr(struct ib_mr *, struct ib_uobject *);
 struct ib_mr *qedr_get_dma_mr(struct ib_pd *, int acc);
 
 struct ib_mr *qedr_reg_user_mr(struct ib_pd *, u64 start, u64 length,

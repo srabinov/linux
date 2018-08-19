@@ -1028,7 +1028,7 @@ err2:
 	return ERR_PTR(err);
 }
 
-static int rxe_dereg_mr(struct ib_mr *ibmr)
+static int rxe_dereg_mr(struct ib_mr *ibmr, struct ib_uobject *uobject)
 {
 	struct rxe_mem *mr = to_rmr(ibmr);
 

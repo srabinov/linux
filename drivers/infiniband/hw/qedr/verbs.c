@@ -2800,7 +2800,7 @@ err0:
 	return ERR_PTR(rc);
 }
 
-int qedr_dereg_mr(struct ib_mr *ib_mr)
+int qedr_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject)
 {
 	struct qedr_mr *mr = get_qedr_mr(ib_mr);
 	struct qedr_dev *dev = get_qedr_dev(ib_mr->device);

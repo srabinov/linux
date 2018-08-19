@@ -662,7 +662,7 @@ err_free:
 	return ERR_PTR(err);
 }
 
-int usnic_ib_dereg_mr(struct ib_mr *ibmr)
+int usnic_ib_dereg_mr(struct ib_mr *ibmr, struct ib_uobject *uobject)
 {
 	struct usnic_ib_mr *mr = to_umr(ibmr);
 

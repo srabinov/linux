@@ -51,7 +51,7 @@ atomic_t qps_created;
 atomic_t sw_qps_destroyed;
 
 static void nes_unregister_ofa_device(struct nes_ib_device *nesibdev);
-static int nes_dereg_mr(struct ib_mr *ib_mr);
+static int nes_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject);
 
 /**
  * nes_alloc_mw
@@ -386,7 +386,7 @@ static struct ib_mr *nes_alloc_mr(struct ib_pd *ibpd,
 	return ibmr;
 
 err:
-	nes_dereg_mr(ibmr);
+	nes_dereg_mr(ibmr, uobject);
 
 	return ERR_PTR(-ENOMEM);
 }
@@ -2456,7 +2456,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 /**
  * nes_dereg_mr
  */
-static int nes_dereg_mr(struct ib_mr *ib_mr)
+static int nes_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject)
 {
 	struct nes_mr *nesmr = to_nesmr(ib_mr);
 	struct nes_vnic *nesvnic = to_nesvnic(ib_mr->device);

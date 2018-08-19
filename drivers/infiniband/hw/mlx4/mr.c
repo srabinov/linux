@@ -597,7 +597,7 @@ mlx4_free_priv_pages(struct mlx4_ib_mr *mr)
 	}
 }
 
-int mlx4_ib_dereg_mr(struct ib_mr *ibmr)
+int mlx4_ib_dereg_mr(struct ib_mr *ibmr, struct ib_uobject *uobject)
 {
 	struct mlx4_ib_mr *mr = to_mmr(ibmr);
 	int ret;

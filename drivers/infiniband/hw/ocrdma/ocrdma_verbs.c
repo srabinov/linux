@@ -968,7 +968,7 @@ umem_err:
 	return ERR_PTR(status);
 }
 
-int ocrdma_dereg_mr(struct ib_mr *ib_mr)
+int ocrdma_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject)
 {
 	struct ocrdma_mr *mr = get_ocrdma_mr(ib_mr);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ib_mr->device);

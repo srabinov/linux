@@ -744,7 +744,7 @@ ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 	return uobj_alloc_commit(uobj, in_len);
 
 err_copy:
-	ib_dereg_mr(mr);
+	ib_dereg_mr_user(mr, uobj);
 
 err_put:
 	uobj_put_obj_read(pd);

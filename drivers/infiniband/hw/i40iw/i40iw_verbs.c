@@ -2078,7 +2078,7 @@ static void i40iw_del_memlist(struct i40iw_mr *iwmr,
  * i40iw_dereg_mr - deregister mr
  * @ib_mr: mr ptr for dereg
  */
-static int i40iw_dereg_mr(struct ib_mr *ib_mr)
+static int i40iw_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject)
 {
 	struct ib_pd *ibpd = ib_mr->pd;
 	struct i40iw_pd *iwpd = to_iwpd(ibpd);

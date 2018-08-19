@@ -275,7 +275,7 @@ freemr:
  *
  * @return: 0 on success.
  */
-int pvrdma_dereg_mr(struct ib_mr *ibmr)
+int pvrdma_dereg_mr(struct ib_mr *ibmr, struct ib_uobject *uobject)
 {
 	struct pvrdma_user_mr *mr = to_vmr(ibmr);
 	struct pvrdma_dev *dev = to_vdev(ibmr->device);

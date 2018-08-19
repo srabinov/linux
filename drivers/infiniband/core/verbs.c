@@ -309,7 +309,7 @@ void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_uobject *uobject)
 	int ret;
 
 	if (pd->__internal_mr) {
-		ret = pd->device->dereg_mr(pd->__internal_mr);
+		ret = pd->device->dereg_mr(pd->__internal_mr, uobject);
 		WARN_ON(ret);
 		pd->__internal_mr = NULL;
 	}
@@ -1943,14 +1943,14 @@ EXPORT_SYMBOL(ib_resize_cq);
 
 /* Memory regions */
 
-int ib_dereg_mr(struct ib_mr *mr)
+int ib_dereg_mr_user(struct ib_mr *mr, struct ib_uobject *uobject)
 {
 	struct ib_pd *pd = mr->pd;
 	struct ib_dm *dm = mr->dm;
 	int ret;
 
 	rdma_restrack_del(&mr->res);
-	ret = mr->device->dereg_mr(mr);
+	ret = mr->device->dereg_mr(mr, uobject);
 	if (!ret) {
 		atomic_dec(&pd->usecnt);
 		if (dm)
@@ -1958,6 +1958,17 @@ int ib_dereg_mr(struct ib_mr *mr)
 	}
 
 	return ret;
+}
+EXPORT_SYMBOL(ib_dereg_mr_user);
+
+/* Never call this function from uverbs! */
+
+int ib_dereg_mr(struct ib_mr *mr)
+{
+	/* Check that we are not called from uverbs... */
+	WARN_ON(!rdma_is_kernel_res(&mr->res));
+
+	return ib_dereg_mr_user(mr, NULL);
 }
 EXPORT_SYMBOL(ib_dereg_mr);
 
