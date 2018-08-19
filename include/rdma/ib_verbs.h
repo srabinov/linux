@@ -2420,7 +2420,8 @@ struct ib_device {
 						  u64 start, u64 length,
 						  u64 virt_addr,
 						  int mr_access_flags,
-						  struct ib_udata *udata);
+						  struct ib_udata *udata,
+						  struct ib_uobject *uobject);
 	int			   (*rereg_user_mr)(struct ib_mr *mr,
 						    int flags,
 						    u64 start, u64 length,

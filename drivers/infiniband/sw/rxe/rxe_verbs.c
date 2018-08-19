@@ -994,7 +994,8 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
 				     u64 start,
 				     u64 length,
 				     u64 iova,
-				     int access, struct ib_udata *udata)
+				     int access, struct ib_udata *udata,
+				     struct ib_uobject *uobject)
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);

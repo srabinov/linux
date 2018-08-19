@@ -1823,13 +1823,15 @@ static int i40iw_hwreg_mr(struct i40iw_device *iwdev,
  * @virt: virtual address
  * @acc: access of mr
  * @udata: user data
+ * @uobject: user object
  */
 static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 				       u64 start,
 				       u64 length,
 				       u64 virt,
 				       int acc,
-				       struct ib_udata *udata)
+				       struct ib_udata *udata,
+				       struct ib_uobject *uobject)
 {
 	struct i40iw_pd *iwpd = to_iwpd(pd);
 	struct i40iw_device *iwdev = to_iwdev(pd->device);

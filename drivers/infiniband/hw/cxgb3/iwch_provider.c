@@ -519,7 +519,8 @@ err:
 }
 
 static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
-				      u64 virt, int acc, struct ib_udata *udata)
+				      u64 virt, int acc, struct ib_udata *udata,
+				      struct ib_uobject *uobject)
 {
 	__be64 *pages;
 	int shift, n, len;

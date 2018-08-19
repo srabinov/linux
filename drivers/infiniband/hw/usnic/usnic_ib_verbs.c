@@ -633,7 +633,8 @@ int usnic_ib_destroy_cq(struct ib_cq *cq)
 
 struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,
 					u64 virt_addr, int access_flags,
-					struct ib_udata *udata)
+					struct ib_udata *udata,
+					struct ib_uobject *uobject)
 {
 	struct usnic_ib_mr *mr;
 	int err;

@@ -985,7 +985,8 @@ static int hns_roce_ib_umem_write_mr(struct hns_roce_dev *hr_dev,
 
 struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				   u64 virt_addr, int access_flags,
-				   struct ib_udata *udata)
+				   struct ib_udata *udata,
+				   struct ib_uobject *uobject)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(pd->device);
 	struct device *dev = hr_dev->dev;

@@ -2097,7 +2097,8 @@ static struct ib_mr *nes_get_dma_mr(struct ib_pd *pd, int acc)
  * nes_reg_user_mr
  */
 static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
-		u64 virt, int acc, struct ib_udata *udata)
+		u64 virt, int acc, struct ib_udata *udata,
+		struct ib_uobject *uobject)
 {
 	u64 iova_start;
 	__le64 *pbl;

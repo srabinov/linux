@@ -105,12 +105,14 @@ struct ib_mr *pvrdma_get_dma_mr(struct ib_pd *pd, int acc)
  * @virt_addr: I/O virtual address
  * @access_flags: access flags for memory region
  * @udata: user data
+ * @uobject: user object
  *
  * @return: ib_mr pointer on success, otherwise returns an errno.
  */
 struct ib_mr *pvrdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				 u64 virt_addr, int access_flags,
-				 struct ib_udata *udata)
+				 struct ib_udata *udata,
+				 struct ib_uobject *uobject)
 {
 	struct pvrdma_dev *dev = to_vdev(pd->device);
 	struct pvrdma_user_mr *mr = NULL;

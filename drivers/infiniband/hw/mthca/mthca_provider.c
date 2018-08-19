@@ -904,7 +904,8 @@ static struct ib_mr *mthca_get_dma_mr(struct ib_pd *pd, int acc)
 }
 
 static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
-				       u64 virt, int acc, struct ib_udata *udata)
+				       u64 virt, int acc, struct ib_udata *udata,
+				       struct ib_uobject *uobject)
 {
 	struct mthca_dev *dev = to_mdev(pd->device);
 	struct scatterlist *sg;
