@@ -307,7 +307,8 @@ static int alloc_fast_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
  */
 static struct ib_mr *nes_alloc_mr(struct ib_pd *ibpd,
 				  enum ib_mr_type mr_type,
-				  u32 max_num_sg)
+				  u32 max_num_sg,
+				  struct ib_uobject *uobject)
 {
 	struct nes_pd *nespd = to_nespd(ibpd);
 	struct nes_vnic *nesvnic = to_nesvnic(ibpd->device);

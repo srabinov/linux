@@ -1670,7 +1670,8 @@ int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 
 struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 			       enum ib_mr_type mr_type,
-			       u32 max_num_sg)
+			       u32 max_num_sg,
+			       struct ib_uobject *uobject)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);

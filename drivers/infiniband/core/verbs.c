@@ -1972,6 +1972,7 @@ EXPORT_SYMBOL(ib_dereg_mr);
  * For mr_type IB_MR_TYPE_MEM_REG, the total length cannot exceed
  * max_num_sg * used_page_size.
  *
+ * This function must never be called from uverbs!
  */
 struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 			  enum ib_mr_type mr_type,
@@ -1982,7 +1983,10 @@ struct ib_mr *ib_alloc_mr(struct ib_pd *pd,
 	if (!pd->device->alloc_mr)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	mr = pd->device->alloc_mr(pd, mr_type, max_num_sg);
+	/* Check that we are not called from uverbs... */
+	WARN_ON(!rdma_is_kernel_res(&pd->res));
+
+	mr = pd->device->alloc_mr(pd, mr_type, max_num_sg, NULL);
 	if (!IS_ERR(mr)) {
 		mr->device  = pd->device;
 		mr->pd      = pd;
