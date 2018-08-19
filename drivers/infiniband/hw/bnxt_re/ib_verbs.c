@@ -1035,7 +1035,8 @@ fail:
 
 struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 				struct ib_qp_init_attr *qp_init_attr,
-				struct ib_udata *udata)
+				struct ib_udata *udata,
+				struct ib_uobject *uobject)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;

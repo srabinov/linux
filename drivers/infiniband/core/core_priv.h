@@ -310,7 +310,7 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 	if (!dev->create_qp)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	qp = dev->create_qp(pd, attr, udata);
+	qp = dev->create_qp(pd, attr, udata, uobj);
 	if (IS_ERR(qp))
 		return qp;
 

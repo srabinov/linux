@@ -754,6 +754,7 @@ static void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
  * @ibpd: the protection domain who's device we create the queue pair for
  * @init_attr: the attributes of the queue pair
  * @udata: user data for libibverbs.so
+ * @uobject: user object (if exist)
  *
  * Queue pair creation is mostly an rvt issue. However, drivers have their own
  * unique idea of what queue pair numbers mean. For instance there is a reserved
@@ -765,7 +766,8 @@ static void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
  */
 struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			    struct ib_qp_init_attr *init_attr,
-			    struct ib_udata *udata)
+			    struct ib_udata *udata,
+			    struct ib_uobject *uobject)
 {
 	struct rvt_qp *qp;
 	int err;

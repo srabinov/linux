@@ -789,7 +789,8 @@ static int iwch_destroy_qp(struct ib_qp *ib_qp)
 
 static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 			     struct ib_qp_init_attr *attrs,
-			     struct ib_udata *udata)
+			     struct ib_udata *udata,
+			     struct ib_uobject *uobject)
 {
 	struct iwch_dev *rhp;
 	struct iwch_qp *qhp;

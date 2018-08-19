@@ -975,7 +975,8 @@ static void nes_free_qp_mem(struct nes_device *nesdev,
  * nes_create_qp
  */
 static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
-		struct ib_qp_init_attr *init_attr, struct ib_udata *udata)
+		struct ib_qp_init_attr *init_attr, struct ib_udata *udata,
+		struct ib_uobject *uobject)
 {
 	u64 u64temp= 0;
 	u64 u64nesqp = 0;

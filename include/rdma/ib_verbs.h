@@ -2382,7 +2382,8 @@ struct ib_device {
 						    const struct ib_recv_wr **bad_recv_wr);
 	struct ib_qp *             (*create_qp)(struct ib_pd *pd,
 						struct ib_qp_init_attr *qp_init_attr,
-						struct ib_udata *udata);
+						struct ib_udata *udata,
+						struct ib_uobject *uobject);
 	int                        (*modify_qp)(struct ib_qp *qp,
 						struct ib_qp_attr *qp_attr,
 						int qp_attr_mask,

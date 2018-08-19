@@ -2248,7 +2248,8 @@ static int set_mlx_qp_type(struct mlx5_ib_dev *dev,
 
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *verbs_init_attr,
-				struct ib_udata *udata)
+				struct ib_udata *udata,
+				struct ib_uobject *uobject)
 {
 	struct mlx5_ib_dev *dev;
 	struct mlx5_ib_qp *qp;

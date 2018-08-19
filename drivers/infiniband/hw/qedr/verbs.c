@@ -1997,7 +1997,8 @@ static int qedr_create_kernel_qp(struct qedr_dev *dev,
 
 struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 			     struct ib_qp_init_attr *attrs,
-			     struct ib_udata *udata)
+			     struct ib_udata *udata,
+			     struct ib_uobject *uobject)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qedr_pd *pd = get_qedr_pd(ibpd);

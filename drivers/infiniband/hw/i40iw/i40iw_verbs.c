@@ -559,7 +559,8 @@ static int i40iw_setup_kmode_qp(struct i40iw_device *iwdev,
  */
 static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 				     struct ib_qp_init_attr *init_attr,
-				     struct ib_udata *udata)
+				     struct ib_udata *udata,
+				     struct ib_uobject *uobject)
 {
 	struct i40iw_pd *iwpd = to_iwpd(ibpd);
 	struct i40iw_device *iwdev = to_iwdev(ibpd->device);
