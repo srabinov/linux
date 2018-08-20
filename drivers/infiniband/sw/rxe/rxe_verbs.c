@@ -501,7 +501,7 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 
 	rxe_add_index(qp);
 
-	err = rxe_qp_from_init(rxe, qp, pd, init, uresp, ibpd);
+	err = rxe_qp_from_init(rxe, qp, pd, init, uresp, ibpd, uobject);
 	if (err)
 		goto err3;
 
@@ -1015,7 +1015,7 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
 	rxe_add_ref(pd);
 
 	err = rxe_mem_init_user(pd, start, length, iova,
-				access, udata, mr);
+				access, udata, mr, uobject);
 	if (err)
 		goto err3;
 

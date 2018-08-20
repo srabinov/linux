@@ -325,7 +325,8 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 		     struct ib_qp_init_attr *init,
 		     struct rxe_create_qp_resp __user *uresp,
-		     struct ib_pd *ibpd)
+		     struct ib_pd *ibpd,
+		     struct ib_uobject *uobject)
 {
 	int err;
 	struct rxe_cq *rcq = to_rcq(init->recv_cq);
