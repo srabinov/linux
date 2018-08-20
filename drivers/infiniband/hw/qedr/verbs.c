@@ -1148,7 +1148,8 @@ static inline int get_gid_info_from_table(struct ib_qp *ibqp,
 }
 
 static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
-			       struct ib_qp_init_attr *attrs)
+			       struct ib_qp_init_attr *attrs,
+			       struct ib_uobject *uobject)
 {
 	struct qedr_device_attr *qattr = &dev->attr;
 
@@ -1708,7 +1709,8 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 			       struct qedr_qp *qp,
 			       struct ib_pd *ibpd,
 			       struct ib_udata *udata,
-			       struct ib_qp_init_attr *attrs)
+			       struct ib_qp_init_attr *attrs,
+			       struct ib_uobject *uobject)
 {
 	struct qed_rdma_create_qp_in_params in_params;
 	struct qed_rdma_create_qp_out_params out_params;
@@ -2009,7 +2011,7 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 	DP_DEBUG(dev, QEDR_MSG_QP, "create qp: called from %s, pd=%p\n",
 		 udata ? "user library" : "kernel", pd);
 
-	rc = qedr_check_qp_attrs(ibpd, dev, attrs);
+	rc = qedr_check_qp_attrs(ibpd, dev, attrs, uobject);
 	if (rc)
 		return ERR_PTR(rc);
 
@@ -2037,7 +2039,7 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 	}
 
 	if (udata)
-		rc = qedr_create_user_qp(dev, qp, ibpd, udata, attrs);
+		rc = qedr_create_user_qp(dev, qp, ibpd, udata, attrs, uobject);
 	else
 		rc = qedr_create_kernel_qp(dev, qp, ibpd, attrs);
 
