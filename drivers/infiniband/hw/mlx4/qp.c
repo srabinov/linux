@@ -4044,7 +4044,8 @@ out:
 
 struct ib_wq *mlx4_ib_create_wq(struct ib_pd *pd,
 				struct ib_wq_init_attr *init_attr,
-				struct ib_udata *udata)
+				struct ib_udata *udata,
+				struct ib_uobject *uobject)
 {
 	struct mlx4_ib_dev *dev;
 	struct ib_qp_init_attr ib_qp_init_attr;

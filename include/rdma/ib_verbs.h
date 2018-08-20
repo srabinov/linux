@@ -2494,7 +2494,8 @@ struct ib_device {
 						  int type);
 	struct ib_wq *		   (*create_wq)(struct ib_pd *pd,
 						struct ib_wq_init_attr *init_attr,
-						struct ib_udata *udata);
+						struct ib_udata *udata,
+						struct ib_uobject *uobject);
 	int			   (*destroy_wq)(struct ib_wq *wq);
 	int			   (*modify_wq)(struct ib_wq *wq,
 						struct ib_wq_attr *attr,

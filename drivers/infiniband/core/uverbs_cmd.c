@@ -3145,7 +3145,8 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 		err = -EOPNOTSUPP;
 		goto err_put_cq;
 	}
-	wq = pd->device->create_wq(pd, &wq_init_attr, uhw);
+	wq = pd->device->create_wq(pd, &wq_init_attr, uhw,
+				   &obj->uevent.uobject);
 	if (IS_ERR(wq)) {
 		err = PTR_ERR(wq);
 		goto err_put_cq;

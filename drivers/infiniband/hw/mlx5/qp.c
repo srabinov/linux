@@ -5454,7 +5454,8 @@ static int prepare_user_rq(struct ib_pd *pd,
 
 struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 				struct ib_wq_init_attr *init_attr,
-				struct ib_udata *udata)
+				struct ib_udata *udata,
+				struct ib_uobject *uobject)
 {
 	struct mlx5_ib_dev *dev;
 	struct mlx5_ib_rwq *rwq;

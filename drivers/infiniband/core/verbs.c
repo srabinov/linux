@@ -2190,6 +2190,8 @@ EXPORT_SYMBOL(ib_dealloc_xrcd);
  * on return.
  * If ib_create_wq() succeeds, then max_wr and max_sge will always be
  * at least as large as the requested values.
+ *
+ * Never call this function from uverbs!
  */
 struct ib_wq *ib_create_wq(struct ib_pd *pd,
 			   struct ib_wq_init_attr *wq_attr)
@@ -2199,7 +2201,10 @@ struct ib_wq *ib_create_wq(struct ib_pd *pd,
 	if (!pd->device->create_wq)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	wq = pd->device->create_wq(pd, wq_attr, NULL);
+	/* Check that we are not called from uverbs... */
+	WARN_ON(!rdma_is_kernel_res(&pd->res));
+
+	wq = pd->device->create_wq(pd, wq_attr, NULL, NULL);
 	if (!IS_ERR(wq)) {
 		wq->event_handler = wq_attr->event_handler;
 		wq->wq_context = wq_attr->wq_context;
