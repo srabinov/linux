@@ -126,7 +126,7 @@ static int uverbs_free_wq(struct ib_uobject *uobject,
 		container_of(uobject, struct ib_uwq_object, uevent.uobject);
 	int ret;
 
-	ret = ib_destroy_wq(wq);
+	ret = ib_destroy_wq(wq, uobject);
 	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 

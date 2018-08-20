@@ -1123,7 +1123,7 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 				struct ib_wq_init_attr *init_attr,
 				struct ib_udata *udata,
 				struct ib_uobject *uobject);
-int mlx5_ib_destroy_wq(struct ib_wq *wq);
+int mlx5_ib_destroy_wq(struct ib_wq *wq, struct ib_uobject *uobject);
 int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		      u32 wq_attr_mask, struct ib_udata *udata);
 struct ib_rwq_ind_table *mlx5_ib_create_rwq_ind_table(struct ib_device *device,
