@@ -513,7 +513,8 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				     struct ib_pd *ib_pd,
 				     struct ib_qp_init_attr *init_attr,
 				     struct ib_udata *udata, unsigned long sqpn,
-				     struct hns_roce_qp *hr_qp)
+				     struct hns_roce_qp *hr_qp,
+				     struct ib_uobject *uobject)
 {
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_ib_create_qp ucmd;
@@ -852,7 +853,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 			return ERR_PTR(-ENOMEM);
 
 		ret = hns_roce_create_qp_common(hr_dev, pd, init_attr, udata, 0,
-						hr_qp);
+						hr_qp, uobject);
 		if (ret) {
 			dev_err(dev, "Create RC QP failed\n");
 			kfree(hr_qp);
