@@ -373,7 +373,7 @@ free_res:
  * i40iw_dealloc_pd - deallocate pd
  * @ibpd: ptr of pd to be deallocated
  */
-static int i40iw_dealloc_pd(struct ib_pd *ibpd)
+static int i40iw_dealloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context)
 {
 	struct i40iw_pd *iwpd = to_iwpd(ibpd);
 	struct i40iw_device *iwdev = to_iwdev(ibpd->device);

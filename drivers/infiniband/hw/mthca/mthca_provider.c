@@ -402,7 +402,7 @@ static struct ib_pd *mthca_alloc_pd(struct ib_device *ibdev,
 	return &pd->ibpd;
 }
 
-static int mthca_dealloc_pd(struct ib_pd *pd)
+static int mthca_dealloc_pd(struct ib_pd *pd, struct ib_ucontext *context)
 {
 	mthca_pd_free(to_mdev(pd->device), to_mpd(pd));
 	kfree(pd);

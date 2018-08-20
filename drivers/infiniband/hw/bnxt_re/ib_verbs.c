@@ -563,7 +563,7 @@ fail:
 }
 
 /* Protection Domains */
-int bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
+int bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_ucontext *context)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;

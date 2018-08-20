@@ -475,7 +475,7 @@ struct ib_pd *usnic_ib_alloc_pd(struct ib_device *ibdev,
 	return &pd->ibpd;
 }
 
-int usnic_ib_dealloc_pd(struct ib_pd *pd)
+int usnic_ib_dealloc_pd(struct ib_pd *pd, struct ib_ucontext *context)
 {
 	usnic_info("freeing domain 0x%p\n", pd);
 

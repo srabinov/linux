@@ -92,7 +92,7 @@ struct ib_pd *hns_roce_alloc_pd(struct ib_device *ib_dev,
 }
 EXPORT_SYMBOL_GPL(hns_roce_alloc_pd);
 
-int hns_roce_dealloc_pd(struct ib_pd *pd)
+int hns_roce_dealloc_pd(struct ib_pd *pd, struct ib_ucontext *context)
 {
 	hns_roce_pd_free(to_hr_dev(pd->device), to_hr_pd(pd)->pdn);
 	kfree(to_hr_pd(pd));

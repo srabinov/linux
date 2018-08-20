@@ -714,7 +714,7 @@ exit:
 	return ERR_PTR(status);
 }
 
-int ocrdma_dealloc_pd(struct ib_pd *ibpd)
+int ocrdma_dealloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context)
 {
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibpd);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibpd->device);

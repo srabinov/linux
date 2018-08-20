@@ -511,7 +511,7 @@ err:
 	return ERR_PTR(rc);
 }
 
-int qedr_dealloc_pd(struct ib_pd *ibpd)
+int qedr_dealloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qedr_pd *pd = get_qedr_pd(ibpd);

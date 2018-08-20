@@ -1304,7 +1304,7 @@ static struct ib_pd *mlx4_ib_alloc_pd(struct ib_device *ibdev,
 	return &pd->ibpd;
 }
 
-static int mlx4_ib_dealloc_pd(struct ib_pd *pd)
+static int mlx4_ib_dealloc_pd(struct ib_pd *pd, struct ib_ucontext *context)
 {
 	mlx4_pd_free(to_mdev(pd->device)->dev, to_mpd(pd)->pdn);
 	kfree(pd);

@@ -2357,7 +2357,8 @@ struct ib_device {
 	struct ib_pd *             (*alloc_pd)(struct ib_device *device,
 					       struct ib_ucontext *context,
 					       struct ib_udata *udata);
-	int                        (*dealloc_pd)(struct ib_pd *pd);
+	int                        (*dealloc_pd)(struct ib_pd *pd,
+						 struct ib_ucontext *context);
 	struct ib_ah *             (*create_ah)(struct ib_pd *pd,
 						struct rdma_ah_attr *ah_attr,
 						struct ib_udata *udata,

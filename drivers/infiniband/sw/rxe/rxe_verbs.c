@@ -214,7 +214,7 @@ static struct ib_pd *rxe_alloc_pd(struct ib_device *dev,
 	return pd ? &pd->ibpd : ERR_PTR(-ENOMEM);
 }
 
-static int rxe_dealloc_pd(struct ib_pd *ibpd)
+static int rxe_dealloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context)
 {
 	struct rxe_pd *pd = to_rpd(ibpd);
 

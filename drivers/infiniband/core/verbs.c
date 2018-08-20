@@ -307,6 +307,7 @@ EXPORT_SYMBOL(__ib_alloc_pd);
 void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_uobject *uobject)
 {
 	int ret;
+	struct ib_ucontext *context = uobject ? uobject->context : NULL;
 
 	if (pd->__internal_mr) {
 		ret = pd->device->dereg_mr(pd->__internal_mr, uobject);
@@ -321,7 +322,7 @@ void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_uobject *uobject)
 	rdma_restrack_del(&pd->res);
 	/* Making delalloc_pd a void return is a WIP, no driver should return
 	   an error here. */
-	ret = pd->device->dealloc_pd(pd);
+	ret = pd->device->dealloc_pd(pd, context);
 	WARN_ONCE(ret, "Infiniband HW driver failed dealloc_pd");
 }
 EXPORT_SYMBOL(ib_dealloc_pd_user);

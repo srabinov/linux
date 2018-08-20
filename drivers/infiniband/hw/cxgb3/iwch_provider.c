@@ -370,7 +370,7 @@ static int iwch_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	return ret;
 }
 
-static int iwch_deallocate_pd(struct ib_pd *pd)
+static int iwch_deallocate_pd(struct ib_pd *pd, struct ib_ucontext *context)
 {
 	struct iwch_dev *rhp;
 	struct iwch_pd *php;
@@ -407,7 +407,7 @@ static struct ib_pd *iwch_allocate_pd(struct ib_device *ibdev,
 		struct iwch_alloc_pd_resp resp = {.pdid = php->pdid};
 
 		if (ib_copy_to_udata(udata, &resp, sizeof(resp))) {
-			iwch_deallocate_pd(&php->ibpd);
+			iwch_deallocate_pd(&php->ibpd, context);
 			return ERR_PTR(-EFAULT);
 		}
 	}

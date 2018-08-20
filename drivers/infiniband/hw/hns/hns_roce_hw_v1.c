@@ -854,7 +854,7 @@ create_lp_qp_failed:
 			dev_err(dev, "Destroy qp %d for mr free failed!\n", i);
 	}
 
-	if (hns_roce_dealloc_pd(pd))
+	if (hns_roce_dealloc_pd(pd, NULL))
 		dev_err(dev, "Destroy pd for create_lp_qp failed!\n");
 
 alloc_pd_failed:
@@ -891,7 +891,7 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 	if (ret)
 		dev_err(dev, "Destroy cq for mr_free failed(%d)!\n", ret);
 
-	ret = hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd);
+	ret = hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd, NULL);
 	if (ret)
 		dev_err(dev, "Destroy pd for mr_free failed(%d)!\n", ret);
 }
