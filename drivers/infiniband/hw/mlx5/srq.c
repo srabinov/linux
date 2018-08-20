@@ -74,7 +74,8 @@ static void mlx5_ib_srq_event(struct mlx5_core_srq *srq, enum mlx5_event type)
 
 static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 			   struct mlx5_srq_attr *in,
-			   struct ib_udata *udata, int buf_size)
+			   struct ib_udata *udata, int buf_size,
+			   struct ib_uobject *uobject)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_create_srq ucmd = {};
@@ -221,7 +222,8 @@ err_db:
 	return err;
 }
 
-static void destroy_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq)
+static void destroy_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
+			     struct ib_uobject *uobject)
 {
 	mlx5_ib_db_unmap_user(to_mucontext(pd->uobject->context), &srq->db);
 	ib_umem_release(srq->umem);
@@ -288,7 +290,7 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	in.type = init_attr->srq_type;
 
 	if (pd->uobject)
-		err = create_srq_user(pd, srq, &in, udata, buf_size);
+		err = create_srq_user(pd, srq, &in, udata, buf_size, uobject);
 	else
 		err = create_srq_kernel(dev, srq, &in, buf_size);
 
@@ -355,7 +357,7 @@ err_core:
 
 err_usr_kern_srq:
 	if (pd->uobject)
-		destroy_srq_user(pd, srq);
+		destroy_srq_user(pd, srq, uobject);
 	else
 		destroy_srq_kernel(dev, srq);
 

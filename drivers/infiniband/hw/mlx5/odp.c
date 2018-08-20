@@ -462,7 +462,8 @@ err_ctx:
 }
 
 struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
-					     int access_flags)
+					     int access_flags,
+					     struct ib_uobject *uobject)
 {
 	struct ib_ucontext *ctx = pd->ibpd.uobject->context;
 	struct mlx5_ib_mr *imr;

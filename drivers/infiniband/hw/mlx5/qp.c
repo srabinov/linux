@@ -664,7 +664,7 @@ static int mlx5_ib_umem_get(struct mlx5_ib_dev *dev,
 			    unsigned long addr, size_t size,
 			    struct ib_umem **umem,
 			    int *npages, int *page_shift, int *ncont,
-			    u32 *offset)
+			    u32 *offset, struct ib_uobject *uobject)
 {
 	int err;
 
@@ -695,7 +695,7 @@ err_umem:
 }
 
 static void destroy_user_rq(struct mlx5_ib_dev *dev, struct ib_pd *pd,
-			    struct mlx5_ib_rwq *rwq)
+			    struct mlx5_ib_rwq *rwq, struct ib_uobject *uobject)
 {
 	struct mlx5_ib_ucontext *context;
 
@@ -710,7 +710,8 @@ static void destroy_user_rq(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 static int create_user_rq(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			  struct mlx5_ib_rwq *rwq,
-			  struct mlx5_ib_create_wq *ucmd)
+			  struct mlx5_ib_create_wq *ucmd,
+			  struct ib_uobject *uobject)
 {
 	struct mlx5_ib_ucontext *context;
 	int page_shift = 0;
@@ -775,7 +776,8 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			  struct ib_qp_init_attr *attr,
 			  u32 **in,
 			  struct mlx5_ib_create_qp_resp *resp, int *inlen,
-			  struct mlx5_ib_qp_base *base)
+			  struct mlx5_ib_qp_base *base,
+			  struct ib_uobject *uobject)
 {
 	struct mlx5_ib_ucontext *context;
 	struct mlx5_ib_create_qp ucmd;
@@ -835,7 +837,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		err = mlx5_ib_umem_get(dev, pd, ubuffer->buf_addr,
 				       ubuffer->buf_size,
 				       &ubuffer->umem, &npages, &page_shift,
-				       &ncont, &offset);
+				       &ncont, &offset, uobject);
 		if (err)
 			goto err_bfreg;
 	} else {
@@ -898,7 +900,8 @@ err_bfreg:
 }
 
 static void destroy_qp_user(struct mlx5_ib_dev *dev, struct ib_pd *pd,
-			    struct mlx5_ib_qp *qp, struct mlx5_ib_qp_base *base)
+			    struct mlx5_ib_qp *qp, struct mlx5_ib_qp_base *base,
+			    struct ib_uobject *uobject)
 {
 	struct mlx5_ib_ucontext *context;
 
@@ -1086,7 +1089,8 @@ static void destroy_flow_rule_vport_sq(struct mlx5_ib_dev *dev,
 
 static int create_raw_packet_qp_sq(struct mlx5_ib_dev *dev,
 				   struct mlx5_ib_sq *sq, void *qpin,
-				   struct ib_pd *pd)
+				   struct ib_pd *pd,
+				   struct ib_uobject *uobject)
 {
 	struct mlx5_ib_ubuffer *ubuffer = &sq->ubuffer;
 	__be64 *pas;
@@ -1103,7 +1107,7 @@ static int create_raw_packet_qp_sq(struct mlx5_ib_dev *dev,
 
 	err = mlx5_ib_umem_get(dev, pd, ubuffer->buf_addr, ubuffer->buf_size,
 			       &sq->ubuffer.umem, &npages, &page_shift,
-			       &ncont, &offset);
+			       &ncont, &offset, uobject);
 	if (err)
 		return err;
 
@@ -1296,7 +1300,7 @@ static void destroy_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 
 static int create_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 				u32 *in, size_t inlen,
-				struct ib_pd *pd)
+				struct ib_pd *pd, struct ib_uobject *uobject)
 {
 	struct mlx5_ib_raw_packet_qp *raw_packet_qp = &qp->raw_packet_qp;
 	struct mlx5_ib_sq *sq = &raw_packet_qp->sq;
@@ -1312,7 +1316,7 @@ static int create_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		if (err)
 			return err;
 
-		err = create_raw_packet_qp_sq(dev, sq, in, pd);
+		err = create_raw_packet_qp_sq(dev, sq, in, pd, uobject);
 		if (err)
 			goto err_destroy_tis;
 
@@ -1393,7 +1397,8 @@ static void destroy_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *q
 static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 				 struct ib_pd *pd,
 				 struct ib_qp_init_attr *init_attr,
-				 struct ib_udata *udata)
+				 struct ib_udata *udata,
+				 struct ib_uobject *uobject)
 {
 	struct ib_uobject *uobj = pd->uobject;
 	struct ib_ucontext *ucontext = uobj->context;
@@ -1602,7 +1607,8 @@ err:
 
 static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			    struct ib_qp_init_attr *init_attr,
-			    struct ib_udata *udata, struct mlx5_ib_qp *qp)
+			    struct ib_udata *udata, struct mlx5_ib_qp *qp,
+			    struct ib_uobject *uobject)
 {
 	struct mlx5_ib_resources *devr = &dev->devr;
 	int inlen = MLX5_ST_SZ_BYTES(create_qp_in);
@@ -1631,7 +1637,8 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		if (!udata)
 			return -ENOSYS;
 
-		err = create_rss_raw_qp_tir(dev, qp, pd, init_attr, udata);
+		err = create_rss_raw_qp_tir(dev, qp, pd, init_attr, udata,
+					    uobject);
 		return err;
 	}
 
@@ -1763,7 +1770,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 				return -EINVAL;
 			}
 			err = create_user_qp(dev, pd, qp, udata, init_attr, &in,
-					     &resp, &inlen, base);
+					     &resp, &inlen, base, uobject);
 			if (err)
 				mlx5_ib_dbg(dev, "err %d\n", err);
 		} else {
@@ -1911,7 +1918,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	    qp->flags & MLX5_IB_QP_UNDERLAY) {
 		qp->raw_packet_qp.sq.ubuffer.buf_addr = ucmd.sq_buf_addr;
 		raw_packet_qp_copy_info(qp, &qp->raw_packet_qp);
-		err = create_raw_packet_qp(dev, qp, in, inlen, pd);
+		err = create_raw_packet_qp(dev, qp, in, inlen, pd, uobject);
 	} else {
 		err = mlx5_core_create_qp(dev->mdev, &base->mqp, in, inlen);
 	}
@@ -1947,7 +1954,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 err_create:
 	if (qp->create_type == MLX5_QP_USER)
-		destroy_qp_user(dev, pd, qp, base);
+		destroy_qp_user(dev, pd, qp, base, uobject);
 	else if (qp->create_type == MLX5_QP_KERNEL)
 		destroy_qp_kernel(dev, qp);
 
@@ -2058,7 +2065,8 @@ static int modify_raw_packet_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 				const struct mlx5_modify_raw_qp_param *raw_qp_param,
 				u8 lag_tx_affinity);
 
-static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
+static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
+			      struct ib_uobject *uobject)
 {
 	struct mlx5_ib_cq *send_cq, *recv_cq;
 	struct mlx5_ib_qp_base *base;
@@ -2129,7 +2137,7 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 	if (qp->create_type == MLX5_QP_KERNEL)
 		destroy_qp_kernel(dev, qp);
 	else if (qp->create_type == MLX5_QP_USER)
-		destroy_qp_user(dev, &get_pd(qp)->ibpd, qp, base);
+		destroy_qp_user(dev, &get_pd(qp)->ibpd, qp, base, uobject);
 }
 
 static const char *ib_qp_type_str(enum ib_qp_type type)
@@ -2167,7 +2175,8 @@ static const char *ib_qp_type_str(enum ib_qp_type type)
 
 static struct ib_qp *mlx5_ib_create_dct(struct ib_pd *pd,
 					struct ib_qp_init_attr *attr,
-					struct mlx5_ib_create_qp *ucmd)
+					struct mlx5_ib_create_qp *ucmd,
+					struct ib_uobject *uobject)
 {
 	struct mlx5_ib_qp *qp;
 	int err = 0;
@@ -2297,7 +2306,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 				return ERR_PTR(-EINVAL);
 			}
 		} else {
-			return mlx5_ib_create_dct(pd, init_attr, &ucmd);
+			return mlx5_ib_create_dct(pd, init_attr, &ucmd, uobject);
 		}
 	}
 
@@ -2327,7 +2336,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
 
-		err = create_qp_common(dev, pd, init_attr, udata, qp);
+		err = create_qp_common(dev, pd, init_attr, udata, qp, uobject);
 		if (err) {
 			mlx5_ib_dbg(dev, "create_qp_common failed\n");
 			kfree(qp);
@@ -2399,7 +2408,7 @@ int mlx5_ib_destroy_qp(struct ib_qp *qp, struct ib_uobject *uobject)
 	if (mqp->qp_sub_type == MLX5_IB_QPT_DCT)
 		return mlx5_ib_destroy_dct(mqp);
 
-	destroy_qp_common(dev, mqp);
+	destroy_qp_common(dev, mqp, uobject);
 
 	kfree(mqp);
 
@@ -5374,7 +5383,8 @@ static int set_user_rq_size(struct mlx5_ib_dev *dev,
 static int prepare_user_rq(struct ib_pd *pd,
 			   struct ib_wq_init_attr *init_attr,
 			   struct ib_udata *udata,
-			   struct mlx5_ib_rwq *rwq)
+			   struct mlx5_ib_rwq *rwq,
+			   struct ib_uobject *uobject)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_create_wq ucmd = {};
@@ -5441,7 +5451,7 @@ static int prepare_user_rq(struct ib_pd *pd,
 		return err;
 	}
 
-	err = create_user_rq(dev, pd, rwq, &ucmd);
+	err = create_user_rq(dev, pd, rwq, &ucmd, uobject);
 	if (err) {
 		mlx5_ib_dbg(dev, "err %d\n", err);
 		if (err)
@@ -5476,7 +5486,7 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 		rwq = kzalloc(sizeof(*rwq), GFP_KERNEL);
 		if (!rwq)
 			return ERR_PTR(-ENOMEM);
-		err = prepare_user_rq(pd, init_attr, udata, rwq);
+		err = prepare_user_rq(pd, init_attr, udata, rwq, uobject);
 		if (err)
 			goto err;
 		err = create_rq(rwq, pd, init_attr);
@@ -5506,7 +5516,7 @@ struct ib_wq *mlx5_ib_create_wq(struct ib_pd *pd,
 err_copy:
 	mlx5_core_destroy_rq_tracked(dev->mdev, &rwq->core_qp);
 err_user_rq:
-	destroy_user_rq(dev, pd, rwq);
+	destroy_user_rq(dev, pd, rwq, uobject);
 err:
 	kfree(rwq);
 	return ERR_PTR(err);
