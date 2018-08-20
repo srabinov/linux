@@ -1170,7 +1170,8 @@ static void ocrdma_del_qpn_map(struct ocrdma_dev *dev, struct ocrdma_qp *qp)
 }
 
 static int ocrdma_check_qp_params(struct ib_pd *ibpd, struct ocrdma_dev *dev,
-				  struct ib_qp_init_attr *attrs)
+				  struct ib_qp_init_attr *attrs,
+				  struct ib_uobject *uobject)
 {
 	if ((attrs->qp_type != IB_QPT_GSI) &&
 	    (attrs->qp_type != IB_QPT_RC) &&
@@ -1376,7 +1377,7 @@ struct ib_qp *ocrdma_create_qp(struct ib_pd *ibpd,
 	struct ocrdma_create_qp_ureq ureq;
 	u16 dpp_credit_lmt, dpp_offset;
 
-	status = ocrdma_check_qp_params(ibpd, dev, attrs);
+	status = ocrdma_check_qp_params(ibpd, dev, attrs, uobject);
 	if (status)
 		goto gen_err;
 
