@@ -815,7 +815,7 @@ ssize_t ib_uverbs_rereg_mr(struct ib_uverbs_file *file,
 	old_pd = mr->pd;
 	ret = mr->device->rereg_user_mr(mr, cmd.flags, cmd.start,
 					cmd.length, cmd.hca_va,
-					cmd.access_flags, pd, &udata);
+					cmd.access_flags, pd, &udata, uobj);
 	if (!ret) {
 		if (cmd.flags & IB_MR_REREG_PD) {
 			atomic_inc(&pd->usecnt);

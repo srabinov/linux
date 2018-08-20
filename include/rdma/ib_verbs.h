@@ -2429,7 +2429,8 @@ struct ib_device {
 						    u64 virt_addr,
 						    int mr_access_flags,
 						    struct ib_pd *pd,
-						    struct ib_udata *udata);
+						    struct ib_udata *udata,
+						    struct ib_uobject *uobject);
 	int                        (*dereg_mr)(struct ib_mr *mr,
 					       struct ib_uobject *uobject);
 	struct ib_mr *		   (*alloc_mr)(struct ib_pd *pd,

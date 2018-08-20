@@ -461,7 +461,7 @@ err_free:
 int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 			  u64 start, u64 length, u64 virt_addr,
 			  int mr_access_flags, struct ib_pd *pd,
-			  struct ib_udata *udata)
+			  struct ib_udata *udata, struct ib_uobject *uobject)
 {
 	struct mlx4_ib_dev *dev = to_mdev(mr->device);
 	struct mlx4_ib_mr *mmr = to_mmr(mr);

@@ -1438,7 +1438,8 @@ static int rereg_umr(struct ib_pd *pd, struct mlx5_ib_mr *mr,
 
 int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 			  u64 length, u64 virt_addr, int new_access_flags,
-			  struct ib_pd *new_pd, struct ib_udata *udata)
+			  struct ib_pd *new_pd, struct ib_udata *udata,
+			  struct ib_uobject *uobject)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ib_mr->device);
 	struct mlx5_ib_mr *mr = to_mmr(ib_mr);
