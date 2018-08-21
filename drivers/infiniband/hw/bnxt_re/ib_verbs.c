@@ -873,7 +873,8 @@ static u8 __from_ib_qp_type(enum ib_qp_type type)
 }
 
 static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
-				struct bnxt_re_qp *qp, struct ib_udata *udata)
+				struct bnxt_re_qp *qp, struct ib_udata *udata,
+				struct ib_uobject *uobject)
 {
 	struct bnxt_re_qp_req ureq;
 	struct bnxt_qplib_qp *qplib_qp = &qp->qplib_qp;
@@ -1194,7 +1195,7 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 		qp->qplib_qp.max_rd_atomic = dev_attr->max_qp_rd_atom;
 		qp->qplib_qp.max_dest_rd_atomic = dev_attr->max_qp_init_rd_atom;
 		if (udata) {
-			rc = bnxt_re_init_user_qp(rdev, pd, qp, udata);
+			rc = bnxt_re_init_user_qp(rdev, pd, qp, udata, uobject);
 			if (rc)
 				goto fail;
 		} else {
@@ -1352,7 +1353,8 @@ int bnxt_re_destroy_srq(struct ib_srq *ib_srq)
 static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 				 struct bnxt_re_pd *pd,
 				 struct bnxt_re_srq *srq,
-				 struct ib_udata *udata)
+				 struct ib_udata *udata,
+				 struct ib_uobject *uobject)
 {
 	struct bnxt_re_srq_req ureq;
 	struct bnxt_qplib_srq *qplib_srq = &srq->qplib_srq;
@@ -1427,7 +1429,7 @@ struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
 	nq = &rdev->nq[0];
 
 	if (udata) {
-		rc = bnxt_re_init_user_srq(rdev, pd, srq, udata);
+		rc = bnxt_re_init_user_srq(rdev, pd, srq, udata, uobject);
 		if (rc)
 			goto fail;
 	}
