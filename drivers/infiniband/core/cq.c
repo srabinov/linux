@@ -161,6 +161,7 @@ struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private,
 		goto out_destroy_cq;
 
 	cq->res.type = RDMA_RESTRACK_CQ;
+	cq->res.user = false;
 	cq->res.kern_name = caller;
 	rdma_restrack_add(&cq->res);
 
