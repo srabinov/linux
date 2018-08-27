@@ -231,7 +231,8 @@ static void rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
 
 static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
 				   struct rdma_ah_attr *attr,
-				   struct ib_udata *udata)
+				   struct ib_udata *udata,
+				   struct ib_uobject *uobject)
 
 {
 	int err;

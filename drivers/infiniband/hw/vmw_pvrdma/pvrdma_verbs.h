@@ -421,7 +421,8 @@ int pvrdma_destroy_cq(struct ib_cq *cq);
 int pvrdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 int pvrdma_req_notify_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
 struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-			       struct ib_udata *udata);
+			       struct ib_udata *udata,
+			       struct ib_uobject *uobject);
 int pvrdma_destroy_ah(struct ib_ah *ah);
 
 struct ib_srq *pvrdma_create_srq(struct ib_pd *pd,

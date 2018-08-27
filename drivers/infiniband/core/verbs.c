@@ -488,14 +488,15 @@ rdma_update_sgid_attr(struct rdma_ah_attr *ah_attr,
 
 static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 				     struct rdma_ah_attr *ah_attr,
-				     struct ib_udata *udata)
+				     struct ib_udata *udata,
+				     struct ib_uobject *uobject)
 {
 	struct ib_ah *ah;
 
 	if (!pd->device->create_ah)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	ah = pd->device->create_ah(pd, ah_attr, udata);
+	ah = pd->device->create_ah(pd, ah_attr, udata, uobject);
 
 	if (!IS_ERR(ah)) {
 		ah->device  = pd->device;
@@ -519,6 +520,8 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
  * It returns 0 on success and returns appropriate error code on error.
  * The address handle is used to reference a local or global destination
  * in all UD QP post sends.
+ *
+ * Never call this function from uverbs!
  */
 struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
 {
@@ -526,11 +529,14 @@ struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
 	struct ib_ah *ah;
 	int ret;
 
+	/* Check that we are not called from uverbs... */
+	WARN_ON(!rdma_is_kernel_res(&pd->res));
+
 	ret = rdma_fill_sgid_attr(pd->device, ah_attr, &old_sgid_attr);
 	if (ret)
 		return ERR_PTR(ret);
 
-	ah = _rdma_create_ah(pd, ah_attr, NULL);
+	ah = _rdma_create_ah(pd, ah_attr, NULL, NULL);
 
 	rdma_unfill_sgid_attr(ah_attr, old_sgid_attr);
 	return ah;
@@ -552,7 +558,8 @@ EXPORT_SYMBOL(rdma_create_ah);
  */
 struct ib_ah *rdma_create_user_ah(struct ib_pd *pd,
 				  struct rdma_ah_attr *ah_attr,
-				  struct ib_udata *udata)
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject)
 {
 	const struct ib_gid_attr *old_sgid_attr;
 	struct ib_ah *ah;
@@ -570,7 +577,7 @@ struct ib_ah *rdma_create_user_ah(struct ib_pd *pd,
 		}
 	}
 
-	ah = _rdma_create_ah(pd, ah_attr, udata);
+	ah = _rdma_create_ah(pd, ah_attr, udata, uobject);
 
 out:
 	rdma_unfill_sgid_attr(ah_attr, old_sgid_attr);

@@ -2615,7 +2615,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 		rdma_ah_set_ah_flags(&attr, 0);
 	}
 
-	ah = rdma_create_user_ah(pd, &attr, &udata);
+	ah = rdma_create_user_ah(pd, &attr, &udata, uobj);
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
 		goto err_put;

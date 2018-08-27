@@ -144,7 +144,8 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd,
 }
 
 struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-				struct ib_udata *udata)
+				struct ib_udata *udata,
+				struct ib_uobject *uobject)
 
 {
 	struct mlx4_ib_ah *ah;
@@ -177,7 +178,11 @@ struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 		return create_ib_ah(pd, ah_attr, ah); /* never fails */
 }
 
-/* AH's created via this call must be free'd by mlx4_ib_destroy_ah. */
+/* 
+ * AH's created via this call must be free'd by mlx4_ib_destroy_ah.
+ *
+ * Never call this function from uverbs!
+ */
 struct ib_ah *mlx4_ib_create_ah_slave(struct ib_pd *pd,
 				      struct rdma_ah_attr *ah_attr,
 				      int slave_sgid_index, u8 *s_mac,
@@ -187,9 +192,12 @@ struct ib_ah *mlx4_ib_create_ah_slave(struct ib_pd *pd,
 	struct mlx4_ib_ah *mah;
 	struct ib_ah *ah;
 
+	/* Check that we are not called from uverbs... */
+	WARN_ON(!rdma_is_kernel_res(&pd->res));
+
 	slave_attr.grh.sgid_attr = NULL;
 	slave_attr.grh.sgid_index = slave_sgid_index;
-	ah = mlx4_ib_create_ah(pd, &slave_attr, NULL);
+	ah = mlx4_ib_create_ah(pd, &slave_attr, NULL, NULL);
 	if (IS_ERR(ah))
 		return ah;
 

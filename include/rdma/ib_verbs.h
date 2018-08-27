@@ -2360,7 +2360,8 @@ struct ib_device {
 	int                        (*dealloc_pd)(struct ib_pd *pd);
 	struct ib_ah *             (*create_ah)(struct ib_pd *pd,
 						struct rdma_ah_attr *ah_attr,
-						struct ib_udata *udata);
+						struct ib_udata *udata,
+						struct ib_uobject *uobject);
 	int                        (*modify_ah)(struct ib_ah *ah,
 						struct rdma_ah_attr *ah_attr);
 	int                        (*query_ah)(struct ib_ah *ah,
@@ -3152,6 +3153,7 @@ struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr);
  * @ah_attr: The attributes of the address vector.
  * @udata: pointer to user's input output buffer information need by
  *         provider driver.
+ * @uobject: User object
  *
  * It returns 0 on success and returns appropriate error code on error.
  * The address handle is used to reference a local or global destination
@@ -3159,7 +3161,8 @@ struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr);
  */
 struct ib_ah *rdma_create_user_ah(struct ib_pd *pd,
 				  struct rdma_ah_attr *ah_attr,
-				  struct ib_udata *udata);
+				  struct ib_udata *udata,
+				  struct ib_uobject *uobject);
 /**
  * ib_get_gids_from_rdma_hdr - Get sgid and dgid from GRH or IPv4 header
  *   work completion.
