@@ -59,7 +59,7 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 					struct ib_qp_init_attr *init_attr,
 					struct ib_udata *udata,
 					struct ib_uobject *uobject);
-int usnic_ib_destroy_qp(struct ib_qp *qp);
+int usnic_ib_destroy_qp(struct ib_qp *qp, struct ib_uobject *uobject);
 int usnic_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				int attr_mask, struct ib_udata *udata);
 struct ib_cq *usnic_ib_create_cq(struct ib_device *ibdev,

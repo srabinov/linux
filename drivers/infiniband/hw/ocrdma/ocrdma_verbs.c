@@ -1744,7 +1744,7 @@ void ocrdma_del_flush_qp(struct ocrdma_qp *qp)
 	spin_unlock_irqrestore(&dev->flush_q_lock, flags);
 }
 
-int ocrdma_destroy_qp(struct ib_qp *ibqp)
+int ocrdma_destroy_qp(struct ib_qp *ibqp, struct ib_uobject *uobject)
 {
 	struct ocrdma_pd *pd;
 	struct ocrdma_qp *qp;

@@ -1078,7 +1078,7 @@ struct ib_srq *c4iw_create_srq(struct ib_pd *pd,
 			       struct ib_srq_init_attr *attrs,
 			       struct ib_udata *udata,
 			       struct ib_uobject *uobject);
-int c4iw_destroy_qp(struct ib_qp *ib_qp);
+int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_uobject *uobject);
 struct ib_qp *c4iw_create_qp(struct ib_pd *pd,
 			     struct ib_qp_init_attr *attrs,
 			     struct ib_udata *udata,

@@ -2082,7 +2082,7 @@ out:
 	return ret;
 }
 
-int c4iw_destroy_qp(struct ib_qp *ib_qp)
+int c4iw_destroy_qp(struct ib_qp *ib_qp, struct ib_uobject *uobject)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_qp *qhp;

@@ -2576,7 +2576,7 @@ static int qedr_free_qp_resources(struct qedr_dev *dev, struct qedr_qp *qp)
 	return 0;
 }
 
-int qedr_destroy_qp(struct ib_qp *ibqp)
+int qedr_destroy_qp(struct ib_qp *ibqp, struct ib_uobject *uobject)
 {
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
 	struct qedr_dev *dev = qp->dev;

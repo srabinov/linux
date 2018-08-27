@@ -444,7 +444,7 @@ static void i40iw_clean_cqes(struct i40iw_qp *iwqp, struct i40iw_cq *iwcq)
  * i40iw_destroy_qp - destroy qp
  * @ibqp: qp's ib pointer also to get to device's qp address
  */
-static int i40iw_destroy_qp(struct ib_qp *ibqp)
+static int i40iw_destroy_qp(struct ib_qp *ibqp, struct ib_uobject *uobject)
 {
 	struct i40iw_qp *iwqp = to_iwqp(ibqp);
 
@@ -778,7 +778,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 		err_code = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 		if (err_code) {
 			i40iw_pr_err("copy_to_udata failed\n");
-			i40iw_destroy_qp(&iwqp->ibqp);
+			i40iw_destroy_qp(&iwqp->ibqp, uobject);
 			   /* let the completion of the qp destroy free the qp */
 			return ERR_PTR(err_code);
 		}

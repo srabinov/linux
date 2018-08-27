@@ -634,7 +634,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	return &qp->ibqp;
 }
 
-static int mthca_destroy_qp(struct ib_qp *qp)
+static int mthca_destroy_qp(struct ib_qp *qp, struct ib_uobject *uobject)
 {
 	if (qp->uobject) {
 		mthca_unmap_user_db(to_mdev(qp->device),

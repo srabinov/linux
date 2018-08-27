@@ -784,7 +784,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *init_attr,
 				struct ib_udata *udata,
 				struct ib_uobject *uobject);
-int mlx4_ib_destroy_qp(struct ib_qp *qp);
+int mlx4_ib_destroy_qp(struct ib_qp *qp, struct ib_uobject *uobject);
 void mlx4_ib_drain_sq(struct ib_qp *qp);
 void mlx4_ib_drain_rq(struct ib_qp *qp);
 int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,

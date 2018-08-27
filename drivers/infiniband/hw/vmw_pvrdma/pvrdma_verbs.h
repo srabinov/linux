@@ -441,7 +441,7 @@ int pvrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		     int attr_mask, struct ib_udata *udata);
 int pvrdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		    int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
-int pvrdma_destroy_qp(struct ib_qp *qp);
+int pvrdma_destroy_qp(struct ib_qp *qp, struct ib_uobject *uobject);
 int pvrdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 		     const struct ib_send_wr **bad_wr);
 int pvrdma_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,

@@ -92,7 +92,7 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 		ib_uverbs_detach_umcast(qp, uqp);
 	}
 
-	ret = ib_destroy_qp(qp);
+	ret = ib_destroy_qp_user(qp, uobject);
 	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 

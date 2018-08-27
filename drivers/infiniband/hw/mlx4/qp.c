@@ -1625,7 +1625,7 @@ static int _mlx4_ib_destroy_qp(struct ib_qp *qp)
 	return 0;
 }
 
-int mlx4_ib_destroy_qp(struct ib_qp *qp)
+int mlx4_ib_destroy_qp(struct ib_qp *qp, struct ib_uobject *uobject)
 {
 	struct mlx4_ib_qp *mqp = to_mqp(qp);
 

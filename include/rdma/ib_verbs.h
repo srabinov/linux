@@ -2392,7 +2392,8 @@ struct ib_device {
 					       struct ib_qp_attr *qp_attr,
 					       int qp_attr_mask,
 					       struct ib_qp_init_attr *qp_init_attr);
-	int                        (*destroy_qp)(struct ib_qp *qp);
+	int                        (*destroy_qp)(struct ib_qp *qp,
+						 struct ib_uobject *uobject);
 	int                        (*post_send)(struct ib_qp *qp,
 						const struct ib_send_wr *send_wr,
 						const struct ib_send_wr **bad_send_wr);
@@ -3358,9 +3359,12 @@ int ib_query_qp(struct ib_qp *qp,
 		struct ib_qp_init_attr *qp_init_attr);
 
 /**
- * ib_destroy_qp - Destroys the specified QP.
+ * ib_destroy_qp_user - Destroys the specified QP.
  * @qp: The QP to destroy.
+ * @uobject: User object (if exist)
  */
+int ib_destroy_qp_user(struct ib_qp *qp,
+		       struct ib_uobject *uobject);
 int ib_destroy_qp(struct ib_qp *qp);
 
 /**

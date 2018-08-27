@@ -1424,13 +1424,14 @@ inval:
 /**
  * rvt_destroy_qp - destroy a queue pair
  * @ibqp: the queue pair to destroy
+ * @uobject: user object (if exist)
  *
  * Note that this can be called while the QP is actively sending or
  * receiving!
  *
  * Return: 0 on success.
  */
-int rvt_destroy_qp(struct ib_qp *ibqp)
+int rvt_destroy_qp(struct ib_qp *ibqp, struct ib_uobject *uobject)
 {
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);

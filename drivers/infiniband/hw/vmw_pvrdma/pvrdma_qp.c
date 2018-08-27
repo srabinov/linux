@@ -452,7 +452,7 @@ static void pvrdma_free_qp(struct pvrdma_qp *qp)
  *
  * @return: 0 on success.
  */
-int pvrdma_destroy_qp(struct ib_qp *qp)
+int pvrdma_destroy_qp(struct ib_qp *qp, struct ib_uobject *uobject)
 {
 	struct pvrdma_qp *vqp = to_vqp(qp);
 	union pvrdma_cmd_req req;

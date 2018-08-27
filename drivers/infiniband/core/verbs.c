@@ -1107,10 +1107,15 @@ struct ib_qp *ib_open_qp(struct ib_xrcd *xrcd,
 }
 EXPORT_SYMBOL(ib_open_qp);
 
+/* Never call this function from uverbs! */
+
 static struct ib_qp *ib_create_xrc_qp(struct ib_qp *qp,
 		struct ib_qp_init_attr *qp_init_attr)
 {
 	struct ib_qp *real_qp = qp;
+
+	/* Check that we are not called from uverbs... */
+	WARN_ON(!rdma_is_kernel_res(&qp->res));
 
 	qp->event_handler = __ib_shared_qp_event_handler;
 	qp->qp_context = qp;
@@ -1126,7 +1131,7 @@ static struct ib_qp *ib_create_xrc_qp(struct ib_qp *qp,
 	if (!IS_ERR(qp))
 		__ib_insert_xrcd_qp(qp_init_attr->xrcd, real_qp);
 	else
-		real_qp->device->destroy_qp(real_qp);
+		real_qp->device->destroy_qp(real_qp, NULL);
 	return qp;
 }
 
@@ -1828,7 +1833,7 @@ static int __ib_destroy_shared_qp(struct ib_qp *qp)
 	return 0;
 }
 
-int ib_destroy_qp(struct ib_qp *qp)
+int ib_destroy_qp_user(struct ib_qp *qp, struct ib_uobject *uobject)
 {
 	const struct ib_gid_attr *alt_path_sgid_attr = qp->alt_path_sgid_attr;
 	const struct ib_gid_attr *av_sgid_attr = qp->av_sgid_attr;
@@ -1860,7 +1865,7 @@ int ib_destroy_qp(struct ib_qp *qp)
 		rdma_rw_cleanup_mrs(qp);
 
 	rdma_restrack_del(&qp->res);
-	ret = qp->device->destroy_qp(qp);
+	ret = qp->device->destroy_qp(qp, uobject);
 	if (!ret) {
 		if (alt_path_sgid_attr)
 			rdma_put_gid_attr(alt_path_sgid_attr);
@@ -1884,6 +1889,17 @@ int ib_destroy_qp(struct ib_qp *qp)
 	}
 
 	return ret;
+}
+EXPORT_SYMBOL(ib_destroy_qp_user);
+
+/* Never call this function from uverbs! */
+
+int ib_destroy_qp(struct ib_qp *qp)
+{
+	/* Check that we are not called from uverbs... */
+	WARN_ON(!rdma_is_kernel_res(&qp->res));
+
+	return ib_destroy_qp_user(qp, NULL);
 }
 EXPORT_SYMBOL(ib_destroy_qp);
 

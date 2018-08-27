@@ -3917,7 +3917,7 @@ static void hns_roce_v1_destroy_qp_work_fn(struct work_struct *work)
 	dev_dbg(dev, "Accomplished destroy QP(0x%lx) work.\n", qpn);
 }
 
-int hns_roce_v1_destroy_qp(struct ib_qp *ibqp)
+int hns_roce_v1_destroy_qp(struct ib_qp *ibqp, struct ib_uobject *uobject)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
