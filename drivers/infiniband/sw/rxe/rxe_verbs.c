@@ -344,7 +344,7 @@ static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
 	struct rxe_srq *srq;
-	struct ib_ucontext *context = udata ? ibpd->uobject->context : NULL;
+	struct ib_ucontext *context = udata ? uobject->context : NULL;
 	struct rxe_create_srq_resp __user *uresp = NULL;
 
 	if (udata) {

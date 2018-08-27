@@ -951,7 +951,8 @@ static int mthca_max_data_size(struct mthca_dev *dev, struct mthca_qp *qp, int d
 static inline int mthca_max_inline_data(struct mthca_pd *pd, int max_data_size)
 {
 	/* We don't support inline data for kernel QPs (yet). */
-	return pd->ibpd.uobject ? max_data_size - MTHCA_INLINE_HEADER_SIZE : 0;
+	return (!rdma_is_kernel_res(&pd->ibpd.res)) ?
+		max_data_size - MTHCA_INLINE_HEADER_SIZE : 0;
 }
 
 static void mthca_adjust_qp_caps(struct mthca_dev *dev,
@@ -1048,7 +1049,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 	 * allocate anything.  All we need is to calculate the WQE
 	 * sizes and the send_wqe_offset, so we're done now.
 	 */
-	if (pd->ibpd.uobject)
+	if (!rdma_is_kernel_res(&pd->ibpd.res))
 		return 0;
 
 	size = PAGE_ALIGN(qp->send_wqe_offset +
@@ -1191,7 +1192,7 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 	 * will be allocated and buffers will be initialized in
 	 * userspace.
 	 */
-	if (pd->ibpd.uobject)
+	if (!rdma_is_kernel_res(&pd->ibpd.res))
 		return 0;
 
 	ret = mthca_alloc_memfree(dev, qp);

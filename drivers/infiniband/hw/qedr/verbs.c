@@ -1190,7 +1190,7 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 	}
 
 	/* Unprivileged user space cannot create special QP */
-	if (ibpd->uobject && attrs->qp_type == IB_QPT_GSI) {
+	if (uobject && attrs->qp_type == IB_QPT_GSI) {
 		DP_ERR(dev,
 		       "create qp: userspace can't create special QPs of type=0x%x\n",
 		       attrs->qp_type);
@@ -1473,8 +1473,8 @@ struct ib_srq *qedr_create_srq(struct ib_pd *ibpd,
 	hw_srq->max_wr = init_attr->attr.max_wr;
 	hw_srq->max_sges = init_attr->attr.max_sge;
 
-	if (udata && ibpd->uobject && ibpd->uobject->context) {
-		ib_ctx = ibpd->uobject->context;
+	if (udata && uobject && uobject->context) {
+		ib_ctx = uobject->context;
 		ctx = get_qedr_ucontext(ib_ctx);
 
 		if (ib_copy_from_udata(&ureq, udata, sizeof(ureq))) {
@@ -1556,7 +1556,7 @@ int qedr_destroy_srq(struct ib_srq *ibsrq)
 	in_params.srq_id = srq->srq_id;
 	dev->ops->rdma_destroy_srq(dev->rdma_ctx, &in_params);
 
-	if (ibsrq->pd->uobject)
+	if (!rdma_is_kernel_res(&ibsrq->pd->res))
 		qedr_free_srq_user_params(srq);
 	else
 		qedr_free_srq_kernel_params(srq);
@@ -1720,7 +1720,7 @@ static int qedr_create_user_qp(struct qedr_dev *dev,
 	int alloc_and_init = rdma_protocol_roce(&dev->ibdev, 1);
 	int rc = -EINVAL;
 
-	ib_ctx = ibpd->uobject->context;
+	ib_ctx = uobject->context;
 
 	memset(&ureq, 0, sizeof(ureq));
 	rc = ib_copy_from_udata(&ureq, udata, sizeof(ureq));
@@ -2739,7 +2739,7 @@ struct ib_mr *qedr_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 
 	mr->type = QEDR_MR_USER;
 
-	mr->umem = ib_umem_get(ibpd->uobject->context, start, len, acc, 0);
+	mr->umem = ib_umem_get(uobject->context, start, len, acc, 0);
 	if (IS_ERR(mr->umem)) {
 		rc = -EFAULT;
 		goto err0;

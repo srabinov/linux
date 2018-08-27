@@ -104,9 +104,9 @@ static void mthca_tavor_init_srq_context(struct mthca_dev *dev,
 	context->state_pd    = cpu_to_be32(pd->pd_num);
 	context->lkey        = cpu_to_be32(srq->mr.ibmr.lkey);
 
-	if (pd->ibpd.uobject)
+	if (uobject)
 		context->uar =
-			cpu_to_be32(to_mucontext(pd->ibpd.uobject->context)->uar.index);
+			cpu_to_be32(to_mucontext(uobject->context)->uar.index);
 	else
 		context->uar = cpu_to_be32(dev->driver_uar.index);
 }
@@ -131,9 +131,9 @@ static void mthca_arbel_init_srq_context(struct mthca_dev *dev,
 	context->lkey = cpu_to_be32(srq->mr.ibmr.lkey);
 	context->db_index = cpu_to_be32(srq->db_index);
 	context->logstride_usrpage = cpu_to_be32((srq->wqe_shift - 4) << 29);
-	if (pd->ibpd.uobject)
+	if (uobject)
 		context->logstride_usrpage |=
-			cpu_to_be32(to_mucontext(pd->ibpd.uobject->context)->uar.index);
+			cpu_to_be32(to_mucontext(uobject->context)->uar.index);
 	else
 		context->logstride_usrpage |= cpu_to_be32(dev->driver_uar.index);
 	context->eq_pd = cpu_to_be32(MTHCA_EQ_ASYNC << 24 | pd->pd_num);
@@ -154,7 +154,7 @@ static int mthca_alloc_srq_buf(struct mthca_dev *dev, struct mthca_pd *pd,
 	int err;
 	int i;
 
-	if (pd->ibpd.uobject)
+	if (!rdma_is_kernel_res(&pd->ibpd.res))
 		return 0;
 
 	srq->wrid = kmalloc_array(srq->max, sizeof(u64), GFP_KERNEL);
@@ -238,7 +238,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 		if (err)
 			goto err_out;
 
-		if (!pd->ibpd.uobject) {
+		if (rdma_is_kernel_res(&pd->ibpd.res)) {
 			srq->db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_SRQ,
 						       srq->srqn, &srq->db);
 			if (srq->db_index < 0) {
@@ -300,14 +300,14 @@ err_out_free_srq:
 		mthca_warn(dev, "HW2SW_SRQ failed (%d)\n", err);
 
 err_out_free_buf:
-	if (!pd->ibpd.uobject)
+	if (rdma_is_kernel_res(&pd->ibpd.res))
 		mthca_free_srq_buf(dev, srq);
 
 err_out_mailbox:
 	mthca_free_mailbox(dev, mailbox);
 
 err_out_db:
-	if (!pd->ibpd.uobject && mthca_is_memfree(dev))
+	if (rdma_is_kernel_res(&pd->ibpd.res) && mthca_is_memfree(dev))
 		mthca_free_db(dev, MTHCA_DB_TYPE_SRQ, srq->db_index);
 
 err_out_icm:

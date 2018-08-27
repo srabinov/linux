@@ -500,7 +500,7 @@ struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
 
 	usnic_dbg("\n");
 
-	ucontext = to_uucontext(pd->uobject->context);
+	ucontext = to_uucontext(uobject->context);
 	us_ibdev = to_usdev(pd->device);
 
 	if (init_attr->create_flags)

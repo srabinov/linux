@@ -855,7 +855,7 @@ static int mr_umem_get(struct ib_pd *pd, u64 start, u64 length,
 
 	*umem = NULL;
 
-	u = ib_umem_get(pd->uobject->context, start, length, access_flags, 0);
+	u = ib_umem_get(uobject->context, start, length, access_flags, 0);
 	err = PTR_ERR_OR_ZERO(u);
 	if (err) {
 		mlx5_ib_dbg(dev, "umem get failed (%d)\n", err);

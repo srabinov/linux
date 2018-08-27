@@ -538,7 +538,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	else
 		hr_qp->sq_signal_bits = cpu_to_le32(IB_SIGNAL_REQ_WR);
 
-	ret = hns_roce_set_rq_size(hr_dev, &init_attr->cap, !!ib_pd->uobject,
+	ret = hns_roce_set_rq_size(hr_dev, &init_attr->cap, !!uobject,
 				   !!init_attr->srq, hr_qp);
 	if (ret) {
 		dev_err(dev, "hns_roce_set_rq_size failed\n");
@@ -575,7 +575,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				init_attr->cap.max_recv_sge];
 	}
 
-	if (ib_pd->uobject) {
+	if (uobject) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
 			dev_err(dev, "ib_copy_from_udata error for create qp\n");
 			ret = -EFAULT;
@@ -589,7 +589,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 			goto err_rq_sge_list;
 		}
 
-		hr_qp->umem = ib_umem_get(ib_pd->uobject->context,
+		hr_qp->umem = ib_umem_get(uobject->context,
 					  ucmd.buf_addr, hr_qp->buff_size, 0,
 					  0);
 		if (IS_ERR(hr_qp->umem)) {
@@ -630,7 +630,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		    (udata->outlen >= sizeof(resp)) &&
 		    hns_roce_qp_has_sq(init_attr)) {
 			ret = hns_roce_db_map_user(
-					to_hr_ucontext(ib_pd->uobject->context),
+					to_hr_ucontext(uobject->context),
 					ucmd.sdb_addr, &hr_qp->sdb);
 			if (ret) {
 				dev_err(dev, "sq record doorbell map failed!\n");
@@ -646,7 +646,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		    (udata->outlen >= sizeof(resp)) &&
 		    hns_roce_qp_has_rq(init_attr)) {
 			ret = hns_roce_db_map_user(
-					to_hr_ucontext(ib_pd->uobject->context),
+					to_hr_ucontext(uobject->context),
 					ucmd.db_addr, &hr_qp->rdb);
 			if (ret) {
 				dev_err(dev, "rq record doorbell map failed!\n");
@@ -760,7 +760,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	else
 		hr_qp->doorbell_qpn = cpu_to_le64(hr_qp->qpn);
 
-	if (ib_pd->uobject && (udata->outlen >= sizeof(resp)) &&
+	if (uobject && (udata->outlen >= sizeof(resp)) &&
 		(hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)) {
 
 		/* indicate kernel supports rq record db */
@@ -787,12 +787,12 @@ err_qpn:
 		hns_roce_release_range_qp(hr_dev, qpn, 1);
 
 err_wrid:
-	if (ib_pd->uobject) {
+	if (uobject) {
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
 		    (udata->outlen >= sizeof(resp)) &&
 		    hns_roce_qp_has_rq(init_attr))
 			hns_roce_db_unmap_user(
-					to_hr_ucontext(ib_pd->uobject->context),
+					to_hr_ucontext(uobject->context),
 					&hr_qp->rdb);
 	} else {
 		kfree(hr_qp->sq.wrid);
@@ -800,26 +800,26 @@ err_wrid:
 	}
 
 err_sq_dbmap:
-	if (ib_pd->uobject)
+	if (uobject)
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SQ_RECORD_DB) &&
 		    (udata->inlen >= sizeof(ucmd)) &&
 		    (udata->outlen >= sizeof(resp)) &&
 		    hns_roce_qp_has_sq(init_attr))
 			hns_roce_db_unmap_user(
-					to_hr_ucontext(ib_pd->uobject->context),
+					to_hr_ucontext(uobject->context),
 					&hr_qp->sdb);
 
 err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
 
 err_buf:
-	if (ib_pd->uobject)
+	if (uobject)
 		ib_umem_release(hr_qp->umem);
 	else
 		hns_roce_buf_free(hr_dev, hr_qp->buff_size, &hr_qp->hr_buf);
 
 err_db:
-	if (!ib_pd->uobject && hns_roce_qp_has_rq(init_attr) &&
+	if (!uobject && hns_roce_qp_has_rq(init_attr) &&
 	    (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB))
 		hns_roce_free_db(hr_dev, &hr_qp->rdb);
 
@@ -866,7 +866,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	}
 	case IB_QPT_GSI: {
 		/* Userspace is not allowed to create special QPs: */
-		if (pd->uobject) {
+		if (uobject) {
 			dev_err(dev, "not support usr space GSI\n");
 			return ERR_PTR(-EINVAL);
 		}

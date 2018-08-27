@@ -332,7 +332,7 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 	struct rxe_cq *rcq = to_rcq(init->recv_cq);
 	struct rxe_cq *scq = to_rcq(init->send_cq);
 	struct rxe_srq *srq = init->srq ? to_rsrq(init->srq) : NULL;
-	struct ib_ucontext *context = ibpd->uobject ? ibpd->uobject->context : NULL;
+	struct ib_ucontext *context = uobject ? uobject->context : NULL;
 
 	rxe_add_ref(pd);
 	rxe_add_ref(rcq);

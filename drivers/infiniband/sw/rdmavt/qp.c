@@ -942,7 +942,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 			u32 s = sizeof(struct rvt_rwq) + qp->r_rq.size * sz;
 
 			qp->ip = rvt_create_mmap_info(rdi, s,
-						      ibpd->uobject->context,
+						      uobject->context,
 						      qp->r_rq.wq);
 			if (!qp->ip) {
 				ret = ERR_PTR(-ENOMEM);

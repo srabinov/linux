@@ -457,8 +457,8 @@ static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 	if (!srq)
 		return ERR_PTR(-ENOMEM);
 
-	if (pd->uobject) {
-		context = to_mucontext(pd->uobject->context);
+	if (uobject) {
+		context = to_mucontext(uobject->context);
 
 		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
 			err = -EFAULT;
@@ -479,7 +479,7 @@ static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 	err = mthca_alloc_srq(to_mdev(pd->device), to_mpd(pd),
 			      &init_attr->attr, srq, uobject);
 
-	if (err && pd->uobject)
+	if (err && uobject)
 		mthca_unmap_user_db(to_mdev(pd->device), &context->uar,
 				    context->db_tab, ucmd.db_index);
 
@@ -540,8 +540,8 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
 
-		if (pd->uobject) {
-			context = to_mucontext(pd->uobject->context);
+		if (uobject) {
+			context = to_mucontext(uobject->context);
 
 			if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
 				kfree(qp);
@@ -579,8 +579,8 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 				     init_attr->qp_type, init_attr->sq_sig_type,
 				     &init_attr->cap, qp);
 
-		if (err && pd->uobject) {
-			context = to_mucontext(pd->uobject->context);
+		if (err && uobject) {
+			context = to_mucontext(uobject->context);
 
 			mthca_unmap_user_db(to_mdev(pd->device),
 					    &context->uar,
@@ -599,7 +599,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	case IB_QPT_GSI:
 	{
 		/* Don't allow userspace to create special QPs */
-		if (pd->uobject)
+		if (uobject)
 			return ERR_PTR(-EINVAL);
 
 		qp = kmalloc(sizeof (struct mthca_sqp), GFP_KERNEL);
@@ -920,12 +920,12 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	int write_mtt_size;
 
 	if (udata->inlen < sizeof ucmd) {
-		if (!to_mucontext(pd->uobject->context)->reg_mr_warned) {
+		if (!to_mucontext(uobject->context)->reg_mr_warned) {
 			mthca_warn(dev, "Process '%s' did not pass in MR attrs.\n",
 				   current->comm);
 			mthca_warn(dev, "  Update libmthca to fix this.\n");
 		}
-		++to_mucontext(pd->uobject->context)->reg_mr_warned;
+		++to_mucontext(uobject->context)->reg_mr_warned;
 		ucmd.mr_attrs = 0;
 	} else if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
 		return ERR_PTR(-EFAULT);
@@ -934,7 +934,7 @@ static struct ib_mr *mthca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mr->umem = ib_umem_get(pd->uobject->context, start, length, acc,
+	mr->umem = ib_umem_get(uobject->context, start, length, acc,
 			       ucmd.mr_attrs & MTHCA_MR_DMASYNC);
 
 	if (IS_ERR(mr->umem)) {

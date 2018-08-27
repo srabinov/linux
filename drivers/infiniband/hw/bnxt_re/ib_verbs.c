@@ -699,7 +699,7 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 	ah->qplib_ah.flow_label = grh->flow_label;
 	ah->qplib_ah.hop_limit = grh->hop_limit;
 	ah->qplib_ah.sl = rdma_ah_get_sl(ah_attr);
-	if (ib_pd->uobject &&
+	if (uobject &&
 	    !rdma_is_multicast_addr((struct in6_addr *)
 				    grh->dgid.raw) &&
 	    !rdma_link_local_addr((struct in6_addr *)
@@ -730,8 +730,8 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 	}
 
 	/* Write AVID to shared page. */
-	if (ib_pd->uobject) {
-		struct ib_ucontext *ib_uctx = ib_pd->uobject->context;
+	if (uobject) {
+		struct ib_ucontext *ib_uctx = uobject->context;
 		struct bnxt_re_ucontext *uctx;
 		unsigned long flag;
 		u32 *wrptr;
@@ -880,7 +880,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 	struct bnxt_qplib_qp *qplib_qp = &qp->qplib_qp;
 	struct ib_umem *umem;
 	int bytes = 0;
-	struct ib_ucontext *context = pd->ib_pd.uobject->context;
+	struct ib_ucontext *context = uobject->context;
 	struct bnxt_re_ucontext *cntx = container_of(context,
 						     struct bnxt_re_ucontext,
 						     ib_uctx);
@@ -1360,7 +1360,7 @@ static int bnxt_re_init_user_srq(struct bnxt_re_dev *rdev,
 	struct bnxt_qplib_srq *qplib_srq = &srq->qplib_srq;
 	struct ib_umem *umem;
 	int bytes = 0;
-	struct ib_ucontext *context = pd->ib_pd.uobject->context;
+	struct ib_ucontext *context = uobject->context;
 	struct bnxt_re_ucontext *cntx = container_of(context,
 						     struct bnxt_re_ucontext,
 						     ib_uctx);
@@ -3590,7 +3590,7 @@ struct ib_mr *bnxt_re_reg_user_mr(struct ib_pd *ib_pd, u64 start, u64 length,
 	/* The fixed portion of the rkey is the same as the lkey */
 	mr->ib_mr.rkey = mr->qplib_mr.rkey;
 
-	umem = ib_umem_get(ib_pd->uobject->context, start, length,
+	umem = ib_umem_get(uobject->context, start, length,
 			   mr_access_flags, 0);
 	if (IS_ERR(umem)) {
 		dev_err(rdev_to_dev(rdev), "Failed to get umem");

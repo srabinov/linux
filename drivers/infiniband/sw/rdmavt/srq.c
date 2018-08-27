@@ -120,7 +120,7 @@ struct ib_srq *rvt_create_srq(struct ib_pd *ibpd,
 		u32 s = sizeof(struct rvt_rwq) + srq->rq.size * sz;
 
 		srq->ip =
-		    rvt_create_mmap_info(dev, s, ibpd->uobject->context,
+		    rvt_create_mmap_info(dev, s, uobject->context,
 					 srq->rq.wq);
 		if (!srq->ip) {
 			ret = ERR_PTR(-ENOMEM);

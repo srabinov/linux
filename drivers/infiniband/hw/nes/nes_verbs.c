@@ -734,8 +734,8 @@ static int nes_dealloc_pd(struct ib_pd *ibpd, struct ib_ucontext *context)
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 
-	if ((ibpd->uobject) && (ibpd->uobject->context)) {
-		nesucontext = to_nesucontext(ibpd->uobject->context);
+	if (context) {
+		nesucontext = to_nesucontext(context);
 		nes_debug(NES_DBG_PD, "Clearing bit %u from allocated doorbells\n",
 				nespd->mmap_db_index);
 		clear_bit(nespd->mmap_db_index, nesucontext->allocated_doorbells);
@@ -1068,9 +1068,9 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 				}
 				if (req.user_qp_buffer)
 					nesqp->nesuqp_addr = req.user_qp_buffer;
-				if ((ibpd->uobject) && (ibpd->uobject->context)) {
+				if (uobject && uobject->context) {
 					nesqp->user_mode = 1;
-					nes_ucontext = to_nesucontext(ibpd->uobject->context);
+					nes_ucontext = to_nesucontext(uobject->context);
 					if (virt_wqs) {
 						err = 1;
 						list_for_each_entry(nespbl, &nes_ucontext->qp_reg_mem_list, list) {
@@ -1091,7 +1091,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 						}
 					}
 
-					nes_ucontext = to_nesucontext(ibpd->uobject->context);
+					nes_ucontext = to_nesucontext(uobject->context);
 					nesqp->mmap_sq_db_index =
 						find_next_zero_bit(nes_ucontext->allocated_wqs,
 								   NES_MAX_USER_WQ_REGIONS, nes_ucontext->first_free_wq);
@@ -1259,7 +1259,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 
 			nes_put_cqp_request(nesdev, cqp_request);
 
-			if (ibpd->uobject) {
+			if (uobject) {
 				uresp.mmap_sq_db_index = nesqp->mmap_sq_db_index;
 				uresp.mmap_rq_db_index = 0;
 				uresp.actual_sq_size = sq_size;
@@ -2137,7 +2137,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	u8 stag_key;
 	int first_page = 1;
 
-	region = ib_umem_get(pd->uobject->context, start, length, acc, 0);
+	region = ib_umem_get(uobject->context, start, length, acc, 0);
 	if (IS_ERR(region)) {
 		return (struct ib_mr *)region;
 	}
@@ -2386,7 +2386,7 @@ static struct ib_mr *nes_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				return ERR_PTR(-ENOMEM);
 			}
 			nesmr->region = region;
-			nes_ucontext = to_nesucontext(pd->uobject->context);
+			nes_ucontext = to_nesucontext(uobject->context);
 			pbl_depth = region->length >> 12;
 			pbl_depth += (region->length & (4096-1)) ? 1 : 0;
 			nespbl->pbl_size = pbl_depth*sizeof(u64);

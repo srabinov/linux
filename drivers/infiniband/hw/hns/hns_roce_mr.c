@@ -1000,7 +1000,7 @@ struct ib_mr *hns_roce_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mr->umem = ib_umem_get(pd->uobject->context, start, length,
+	mr->umem = ib_umem_get(uobject->context, start, length,
 			       access_flags, 0);
 	if (IS_ERR(mr->umem)) {
 		ret = PTR_ERR(mr->umem);

@@ -674,9 +674,9 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 			goto error;
 		}
 		iwqp->ctx_info.qp_compl_ctx = req.user_compl_ctx;
-		if (ibpd->uobject && ibpd->uobject->context) {
+		if (uobject && uobject->context) {
 			iwqp->user_mode = 1;
-			ucontext = to_ucontext(ibpd->uobject->context);
+			ucontext = to_ucontext(uobject->context);
 
 			if (req.user_wqe_buffers) {
 				struct i40iw_pbl *iwpbl;
@@ -769,7 +769,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	iwdev->qp_table[qp_num] = iwqp;
 	i40iw_add_pdusecount(iwqp->iwpd);
 	i40iw_add_devusecount(iwdev);
-	if (ibpd->uobject && udata) {
+	if (uobject && udata) {
 		memset(&uresp, 0, sizeof(uresp));
 		uresp.actual_sq_size = sq_size;
 		uresp.actual_rq_size = rq_size;
@@ -1858,7 +1858,7 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 
 	if (length > I40IW_MAX_MR_SIZE)
 		return ERR_PTR(-EINVAL);
-	region = ib_umem_get(pd->uobject->context, start, length, acc, 0);
+	region = ib_umem_get(uobject->context, start, length, acc, 0);
 	if (IS_ERR(region))
 		return (struct ib_mr *)region;
 
@@ -1878,7 +1878,7 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 	iwmr->region = region;
 	iwmr->ibmr.pd = pd;
 	iwmr->ibmr.device = pd->device;
-	ucontext = to_ucontext(pd->uobject->context);
+	ucontext = to_ucontext(uobject->context);
 
 	iwmr->page_size = PAGE_SIZE;
 	iwmr->page_msk = PAGE_MASK;
@@ -2096,10 +2096,10 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr, struct ib_uobject *uobject)
 		ib_umem_release(iwmr->region);
 
 	if (iwmr->type != IW_MEMREG_TYPE_MEM) {
-		if (ibpd->uobject) {
+		if (uobject) {
 			struct i40iw_ucontext *ucontext;
 
-			ucontext = to_ucontext(ibpd->uobject->context);
+			ucontext = to_ucontext(uobject->context);
 			i40iw_del_memlist(iwmr, ucontext);
 		}
 		if (iwpbl->pbl_allocated && iwmr->type != IW_MEMREG_TYPE_QP)

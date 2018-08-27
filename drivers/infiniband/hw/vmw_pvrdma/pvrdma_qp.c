@@ -250,7 +250,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 		init_completion(&qp->free);
 
 		qp->state = IB_QPS_RESET;
-		qp->is_kernel = !(pd->uobject && udata);
+		qp->is_kernel = !(uobject && udata);
 
 		if (!qp->is_kernel) {
 			dev_dbg(&dev->pdev->dev,
@@ -263,7 +263,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 
 			if (!is_srq) {
 				/* set qp->sq.wqe_cnt, shift, buf_size.. */
-				qp->rumem = ib_umem_get(pd->uobject->context,
+				qp->rumem = ib_umem_get(uobject->context,
 							ucmd.rbuf_addr,
 							ucmd.rbuf_size, 0, 0);
 				if (IS_ERR(qp->rumem)) {
@@ -276,7 +276,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 				qp->srq = to_vsrq(init_attr->srq);
 			}
 
-			qp->sumem = ib_umem_get(pd->uobject->context,
+			qp->sumem = ib_umem_get(uobject->context,
 						ucmd.sbuf_addr,
 						ucmd.sbuf_size, 0, 0);
 			if (IS_ERR(qp->sumem)) {
