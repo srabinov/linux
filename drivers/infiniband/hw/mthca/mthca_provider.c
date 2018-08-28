@@ -477,7 +477,7 @@ static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 	}
 
 	err = mthca_alloc_srq(to_mdev(pd->device), to_mpd(pd),
-			      &init_attr->attr, srq);
+			      &init_attr->attr, srq, uobject);
 
 	if (err && pd->uobject)
 		mthca_unmap_user_db(to_mdev(pd->device), &context->uar,

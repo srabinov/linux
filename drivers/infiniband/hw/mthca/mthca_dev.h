@@ -510,7 +510,8 @@ int mthca_alloc_cq_buf(struct mthca_dev *dev, struct mthca_cq_buf *buf, int nent
 void mthca_free_cq_buf(struct mthca_dev *dev, struct mthca_cq_buf *buf, int cqe);
 
 int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
-		    struct ib_srq_attr *attr, struct mthca_srq *srq);
+		    struct ib_srq_attr *attr, struct mthca_srq *srq,
+		    struct ib_uobject *uobject);
 void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq);
 int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		     enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);

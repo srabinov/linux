@@ -95,7 +95,8 @@ static inline int *wqe_to_link(void *wqe)
 static void mthca_tavor_init_srq_context(struct mthca_dev *dev,
 					 struct mthca_pd *pd,
 					 struct mthca_srq *srq,
-					 struct mthca_tavor_srq_context *context)
+					 struct mthca_tavor_srq_context *context,
+					 struct ib_uobject *uobject)
 {
 	memset(context, 0, sizeof *context);
 
@@ -113,7 +114,8 @@ static void mthca_tavor_init_srq_context(struct mthca_dev *dev,
 static void mthca_arbel_init_srq_context(struct mthca_dev *dev,
 					 struct mthca_pd *pd,
 					 struct mthca_srq *srq,
-					 struct mthca_arbel_srq_context *context)
+					 struct mthca_arbel_srq_context *context,
+					 struct ib_uobject *uobject)
 {
 	int logsize, max;
 
@@ -197,7 +199,8 @@ static int mthca_alloc_srq_buf(struct mthca_dev *dev, struct mthca_pd *pd,
 }
 
 int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
-		    struct ib_srq_attr *attr, struct mthca_srq *srq)
+		    struct ib_srq_attr *attr, struct mthca_srq *srq,
+		    struct ib_uobject *uobject)
 {
 	struct mthca_mailbox *mailbox;
 	int ds;
@@ -261,9 +264,9 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	mutex_init(&srq->mutex);
 
 	if (mthca_is_memfree(dev))
-		mthca_arbel_init_srq_context(dev, pd, srq, mailbox->buf);
+		mthca_arbel_init_srq_context(dev, pd, srq, mailbox->buf, uobject);
 	else
-		mthca_tavor_init_srq_context(dev, pd, srq, mailbox->buf);
+		mthca_tavor_init_srq_context(dev, pd, srq, mailbox->buf, uobject);
 
 	err = mthca_SW2HW_SRQ(dev, mailbox, srq->srqn);
 
