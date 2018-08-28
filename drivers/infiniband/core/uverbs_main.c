@@ -112,6 +112,7 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_CLOSE_XRCD]		= ib_uverbs_close_xrcd,
 	[IB_USER_VERBS_CMD_CREATE_XSRQ]		= ib_uverbs_create_xsrq,
 	[IB_USER_VERBS_CMD_OPEN_QP]		= ib_uverbs_open_qp,
+	[IB_USER_VERBS_CMD_EXPORT_TO_FD]	= ib_uverbs_export_to_fd,
 };
 
 static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
@@ -876,6 +877,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	INIT_LIST_HEAD(&file->uobjects);
 	init_rwsem(&file->hw_destroy_rwsem);
 
+	file->filp = filp;
 	filp->private_data = file;
 	kobject_get(&dev->kobj);
 	list_add_tail(&file->list, &dev->uverbs_file_list);

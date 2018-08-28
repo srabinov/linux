@@ -660,6 +660,118 @@ int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject,
 	return ret;
 }
 
+ssize_t ib_uverbs_export_to_fd(struct ib_uverbs_file *file,
+			       const char __user *buf, int in_len,
+			       int out_len)
+{
+	struct ib_uverbs_device *dev = file->device;
+	struct ib_uverbs_export_to_fd_resp resp;
+	struct ib_uverbs_export_to_fd cmd;
+	struct ib_uobject *src_uobj = NULL;
+	struct ib_uobject *dst_uobj = NULL;
+	struct ib_uverbs_file *dst_file;
+	struct ib_device *ib_dev;
+	struct file *filep;
+	int ret;
+
+	if (out_len < sizeof(resp))
+		return -ENOSPC;
+
+	if (copy_from_user(&cmd, buf, sizeof(cmd)))
+		return -EFAULT;
+
+	/* for every share-able object type add case below... */
+	switch (cmd.type)
+	{
+	/* Example:
+	 *
+	 * case UVERBS_OBJECT_PD:
+	 * case ...:
+	 *	break;
+	 */
+	default:
+		/* invalid type! */
+		pr_warn("%s: invalid obj type %d\n", __func__, cmd.type);
+		return -EINVAL;
+	}
+
+	mutex_lock(&dev->lists_mutex);
+
+	filep = fget(cmd.fd);
+	if (!filep) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	/* check uverbs ops exist */
+	if (filep->f_op != file->filp->f_op) {
+		ret = -EINVAL;
+		goto file;
+	}
+
+	dst_file = filep->private_data;
+
+	/* check that files point to same device */
+	if (dst_file->device != file->device) {
+		ret = -EINVAL;
+		goto file;
+	}
+
+	/* grab source object for read */
+	src_uobj = uobj_get_read(cmd.type, cmd.handle, file);
+	if (IS_ERR(src_uobj)) {
+		ret = -EINVAL;
+		goto file;
+	}
+
+	/* allocate new uobj from same type on dst file */
+	dst_uobj = uobj_alloc(cmd.type, dst_file, &ib_dev);
+	if (IS_ERR(dst_uobj)) {
+		ret = -ENOMEM;
+		goto uobj;
+	}
+
+	dst_uobj->object = src_uobj->object;
+	dst_uobj->sharecnt = src_uobj->sharecnt;
+	atomic_inc(src_uobj->sharecnt);
+
+	memset(&resp, 0, sizeof(resp));
+	resp.handle = dst_uobj->id;
+
+	if (copy_to_user((void __user *) (unsigned long) cmd.response,
+			 &resp, sizeof(resp))) {
+		ret = -EFAULT;
+		goto usecnt;
+	}
+
+	ret = uobj_alloc_commit(dst_uobj, in_len);
+
+	uobj_put_read(src_uobj);
+	fput(filep);
+	mutex_unlock(&dev->lists_mutex);
+
+	return ret;
+
+usecnt:
+	/*
+	 * ib_x sharecnt should be at least 2 here becasue
+	 * the share count has 1 ref for the src_obj and
+	 * 1 for the dst_obj. If this WARN_ON is seen, someone
+	 * else released the ib_x object under our feet...!
+	 */
+	WARN_ON(atomic_dec_return(src_uobj->sharecnt) < 1);
+uobj:
+	if (!IS_ERR_OR_NULL(dst_uobj))
+		uobj_alloc_abort(dst_uobj);
+	if (!IS_ERR_OR_NULL(src_uobj))
+		uobj_put_read(src_uobj);
+file:
+	fput(filep);
+unlock:
+	mutex_unlock(&dev->lists_mutex);
+	return ret;
+}
+
 ssize_t ib_uverbs_reg_mr(struct ib_uverbs_file *file,
 			 const char __user *buf, int in_len,
 			 int out_len)
