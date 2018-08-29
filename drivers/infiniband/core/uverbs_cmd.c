@@ -351,10 +351,12 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	struct ib_uverbs_alloc_pd      cmd;
 	struct ib_uverbs_alloc_pd_resp resp;
 	struct ib_udata                udata;
-	struct ib_uobject             *uobj;
-	struct ib_pd                  *pd;
-	int                            ret;
-	struct ib_device *ib_dev;
+	struct ib_device	      *ib_dev;
+	struct ib_uobject             *uobj, *suobj = NULL;
+	struct ib_pd                  *pd, *spd = NULL;
+	struct file                   *sfile = NULL;
+	struct ib_uverbs_file         *sufile;
+	int                            ret = -EINVAL;
 
 	if (out_len < sizeof resp)
 		return -ENOSPC;
@@ -371,32 +373,108 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	pd = ib_dev->alloc_pd(ib_dev, uobj->context, &udata);
-	if (IS_ERR(pd)) {
-		ret = PTR_ERR(pd);
-		goto err;
+	if (cmd.import == VERBS_IMPORT_ON) {
+		sfile = fget(cmd.fd);
+		if (!sfile) {
+			ret = -EINVAL;
+			goto err;
+		}
+
+		/* check uverbs ops exist */
+		if (sfile->f_op != file->filp->f_op) {
+			ret = -EINVAL;
+			goto err_fput;
+		}
+
+		sufile = sfile->private_data;
+
+		/* check that files point to same device */
+		if (sufile->device != file->device) {
+			ret = -EINVAL;
+			goto err_fput;
+		}
+
+		/* once we lock the shared object for read *in the original context*
+		 * this context cannot delete the pd uobject. this protects us from
+		 * this race:
+		 *
+		 * Process A:
+		 * [1] create context
+		 * [2] alloc PD in that context
+		 * [3] share the context + PD handle with process B
+		 * [4] dealloc the PD
+		 *
+		 * Process B:
+		 * [1] get the context + PD handle from process A
+		 * [2] alloc PD using the context + PD handle
+		 *
+		 * if process B was able to pass uobj_get_read on the PD uobject of
+		 * process A, process A will not be able to complete step [4] before
+		 * the sharecnt inc. sharecnt inc protect the PD HW object from deletion
+		 * so process B will have valid ib_pd.
+		 *
+		 * if process A raced us and managed to pass step [4], process B
+		 * uobj_get_read will fail in rdma_lookup_get_uobject because uobject
+		 * handle is no longer valid.
+		 */
+		suobj = uobj_get_read(UVERBS_OBJECT_PD, cmd.pd_handle,
+				      sufile);
+		if (IS_ERR(suobj)) {
+			ret = -EINVAL;
+			goto err_fput;
+		}
+
+		spd = suobj->object;
 	}
 
-	pd->device  = ib_dev;
-	pd->__internal_mr = NULL;
-	atomic_set(&pd->usecnt, 0);
+	pd = ib_dev->alloc_pd(ib_dev, uobj->context, &udata, spd);
+	if (IS_ERR(pd)) {
+		ret = PTR_ERR(pd);
+		goto err_put_read;
+	}
+
+	if (spd)
+		atomic_inc(&pd->sharecnt);
+	else {
+		pd->device  = ib_dev;
+		pd->__internal_mr = NULL;
+		atomic_set(&pd->usecnt, 0);
+		atomic_set(&pd->sharecnt, 1);
+		pd->res.type = RDMA_RESTRACK_PD;
+		pd->res.user = true;
+		rdma_restrack_add(&pd->res);
+	}
 
 	uobj->object = pd;
+	uobj->sharecnt = &pd->sharecnt;
+
 	memset(&resp, 0, sizeof resp);
 	resp.pd_handle = uobj->id;
-	pd->res.type = RDMA_RESTRACK_PD;
-	pd->res.user = true;
-	rdma_restrack_add(&pd->res);
 
 	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
 		ret = -EFAULT;
 		goto err_copy;
 	}
 
+	if (!IS_ERR_OR_NULL(suobj))
+		uobj_put_read(suobj);
+
+	if (sfile)
+		fput(sfile);
+
 	return uobj_alloc_commit(uobj, in_len);
 
 err_copy:
-	ib_dealloc_pd_user(pd, uobj);
+	if (atomic_dec_and_test(&pd->sharecnt))
+		ib_dealloc_pd_user(pd, uobj);
+
+err_put_read:
+	if (!IS_ERR_OR_NULL(suobj))
+		uobj_put_read(suobj);
+
+err_fput:
+	if (sfile)
+		fput(sfile);
 
 err:
 	uobj_alloc_abort(uobj);
@@ -683,12 +761,8 @@ ssize_t ib_uverbs_export_to_fd(struct ib_uverbs_file *file,
 	/* for every share-able object type add case below... */
 	switch (cmd.type)
 	{
-	/* Example:
-	 *
-	 * case UVERBS_OBJECT_PD:
-	 * case ...:
-	 *	break;
-	 */
+	case UVERBS_OBJECT_PD:
+		break;
 	default:
 		/* invalid type! */
 		pr_warn("%s: invalid obj type %d\n", __func__, cmd.type);

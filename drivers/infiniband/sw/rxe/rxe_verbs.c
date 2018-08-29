@@ -205,12 +205,17 @@ static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
 
 static struct ib_pd *rxe_alloc_pd(struct ib_device *dev,
 				  struct ib_ucontext *context,
-				  struct ib_udata *udata)
+				  struct ib_udata *udata,
+				  struct ib_pd *ibpd)
 {
 	struct rxe_dev *rxe = to_rdev(dev);
 	struct rxe_pd *pd;
 
-	pd = rxe_alloc(&rxe->pd_pool);
+	if (ibpd)
+		pd = container_of(ibpd, struct rxe_pd, ibpd);
+	else
+		pd = rxe_alloc(&rxe->pd_pool);
+
 	return pd ? &pd->ibpd : ERR_PTR(-ENOMEM);
 }
 

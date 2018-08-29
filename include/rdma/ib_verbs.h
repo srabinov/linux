@@ -1540,6 +1540,7 @@ struct ib_pd {
 	u32			flags;
 	struct ib_device       *device;
 	atomic_t          	usecnt; /* count all resources */
+	atomic_t		sharecnt; /* count context sharing */
 
 	u32			unsafe_global_rkey;
 
@@ -2356,7 +2357,8 @@ struct ib_device {
 					   struct vm_area_struct *vma);
 	struct ib_pd *             (*alloc_pd)(struct ib_device *device,
 					       struct ib_ucontext *context,
-					       struct ib_udata *udata);
+					       struct ib_udata *udata,
+					       struct ib_pd *spd);
 	int                        (*dealloc_pd)(struct ib_pd *pd,
 						 struct ib_ucontext *context);
 	struct ib_ah *             (*create_ah)(struct ib_pd *pd,

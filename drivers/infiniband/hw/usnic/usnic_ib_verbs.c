@@ -453,12 +453,17 @@ int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 
 struct ib_pd *usnic_ib_alloc_pd(struct ib_device *ibdev,
 					struct ib_ucontext *context,
-					struct ib_udata *udata)
+					struct ib_udata *udata,
+					struct ib_pd *ibpd)
 {
 	struct usnic_ib_pd *pd;
 	void *umem_pd;
 
 	usnic_dbg("\n");
+
+	/* share of pd is not supported for this HW! */
+	if (ibpd)
+		return ERR_PTR(-EINVAL);
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)

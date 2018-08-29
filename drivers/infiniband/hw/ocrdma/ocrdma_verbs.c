@@ -672,13 +672,18 @@ dpp_map_err:
 
 struct ib_pd *ocrdma_alloc_pd(struct ib_device *ibdev,
 			      struct ib_ucontext *context,
-			      struct ib_udata *udata)
+			      struct ib_udata *udata,
+			      struct ib_pd *ibpd)
 {
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibdev);
 	struct ocrdma_pd *pd;
 	struct ocrdma_ucontext *uctx = NULL;
 	int status;
 	u8 is_uctx_pd = false;
+
+	/* share of pd is not supported for this HW! */
+	if (ibpd)
+		return ERR_PTR(-EINVAL);
 
 	if (udata && context) {
 		uctx = get_ocrdma_ucontext(context);

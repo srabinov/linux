@@ -2313,20 +2313,25 @@ int mlx5_ib_dealloc_dm(struct ib_dm *ibdm)
 
 static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
 				      struct ib_ucontext *context,
-				      struct ib_udata *udata)
+				      struct ib_udata *udata,
+				      struct ib_pd *ibpd)
 {
 	struct mlx5_ib_alloc_pd_resp resp;
 	struct mlx5_ib_pd *pd;
 	int err;
 
-	pd = kmalloc(sizeof(*pd), GFP_KERNEL);
-	if (!pd)
-		return ERR_PTR(-ENOMEM);
+	if (ibpd)
+		pd = container_of(ibpd, struct mlx5_ib_pd, ibpd);
+	else {
+		pd = kmalloc(sizeof(*pd), GFP_KERNEL);
+		if (!pd)
+			return ERR_PTR(-ENOMEM);
 
-	err = mlx5_core_alloc_pd(to_mdev(ibdev)->mdev, &pd->pdn);
-	if (err) {
-		kfree(pd);
-		return ERR_PTR(err);
+		err = mlx5_core_alloc_pd(to_mdev(ibdev)->mdev, &pd->pdn);
+		if (err) {
+			kfree(pd);
+			return ERR_PTR(err);
+		}
 	}
 
 	if (context) {
@@ -4531,7 +4536,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 
 	mutex_init(&devr->mutex);
 
-	devr->p0 = mlx5_ib_alloc_pd(&dev->ib_dev, NULL, NULL);
+	devr->p0 = mlx5_ib_alloc_pd(&dev->ib_dev, NULL, NULL, NULL);
 	if (IS_ERR(devr->p0)) {
 		ret = PTR_ERR(devr->p0);
 		goto error0;

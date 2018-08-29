@@ -385,11 +385,16 @@ static int iwch_deallocate_pd(struct ib_pd *pd, struct ib_ucontext *context)
 
 static struct ib_pd *iwch_allocate_pd(struct ib_device *ibdev,
 			       struct ib_ucontext *context,
-			       struct ib_udata *udata)
+			       struct ib_udata *udata,
+			       struct ib_pd *ibpd)
 {
 	struct iwch_pd *php;
 	u32 pdid;
 	struct iwch_dev *rhp;
+
+	/* share of pd is not supported for this HW! */
+	if (ibpd)
+		return ERR_PTR(-EINVAL);
 
 	pr_debug("%s ibdev %p\n", __func__, ibdev);
 	rhp = (struct iwch_dev *) ibdev;

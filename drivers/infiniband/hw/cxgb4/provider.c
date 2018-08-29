@@ -227,11 +227,16 @@ static int c4iw_deallocate_pd(struct ib_pd *pd, struct ib_ucontext *context)
 
 static struct ib_pd *c4iw_allocate_pd(struct ib_device *ibdev,
 				      struct ib_ucontext *context,
-				      struct ib_udata *udata)
+				      struct ib_udata *udata,
+				      struct ib_pd *ibpd)
 {
 	struct c4iw_pd *php;
 	u32 pdid;
 	struct c4iw_dev *rhp;
+
+	/* share of pd is not supported for this HW! */
+	if (ibpd)
+		return ERR_PTR(-EINVAL);
 
 	pr_debug("ibdev %p\n", ibdev);
 	rhp = (struct c4iw_dev *) ibdev;
