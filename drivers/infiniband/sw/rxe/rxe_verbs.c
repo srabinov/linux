@@ -1211,6 +1211,7 @@ int rxe_register_device(struct rxe_dev *rxe)
 	    | BIT_ULL(IB_USER_VERBS_CMD_DESTROY_AH)
 	    | BIT_ULL(IB_USER_VERBS_CMD_ATTACH_MCAST)
 	    | BIT_ULL(IB_USER_VERBS_CMD_DETACH_MCAST)
+	    | BIT_ULL(IB_USER_VERBS_CMD_EXPORT_TO_FD)
 	    ;
 
 	dev->query_device = rxe_query_device;
