@@ -1550,6 +1550,11 @@ struct ib_pd {
 	struct rdma_restrack_entry res;
 };
 
+static inline bool rdma_is_user_pd(struct ib_pd *pd)
+{
+	return !rdma_is_kernel_res(&pd->res);
+}
+
 struct ib_xrcd {
 	struct ib_device       *device;
 	atomic_t		usecnt; /* count all exposed resources */
