@@ -2217,7 +2217,7 @@ EXPORT_SYMBOL(ib_create_wq);
  * ib_destroy_wq - Destroys the specified WQ.
  * @wq: The WQ to destroy.
  */
-int ib_destroy_wq(struct ib_wq *wq)
+int ib_destroy_wq(struct ib_wq *wq, struct ib_udata *udata)
 {
 	int err;
 	struct ib_cq *cq = wq->cq;
@@ -2226,7 +2226,7 @@ int ib_destroy_wq(struct ib_wq *wq)
 	if (atomic_read(&wq->usecnt))
 		return -EBUSY;
 
-	err = wq->device->destroy_wq(wq);
+	err = wq->device->destroy_wq(wq, udata);
 	if (!err) {
 		atomic_dec(&pd->usecnt);
 		atomic_dec(&cq->usecnt);

@@ -5780,7 +5780,7 @@ err:
 	return ERR_PTR(err);
 }
 
-int mlx5_ib_destroy_wq(struct ib_wq *wq)
+int mlx5_ib_destroy_wq(struct ib_wq *wq, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(wq->device);
 	struct mlx5_ib_rwq *rwq = to_mrwq(wq);

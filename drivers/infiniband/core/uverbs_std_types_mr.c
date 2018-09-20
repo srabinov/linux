@@ -38,8 +38,7 @@ static int uverbs_free_mr(struct ib_uobject *uobject,
 {
 	struct ib_udata udata;
 
-	ib_uverbs_init_udata_buf_or_null(&udata, NULL, NULL, 0, 0,
-					 uobject->context);
+	ib_uverbs_init_udata_buf_or_null(&udata, NULL, NULL, 0, 0);
 
 	return ib_dereg_mr_user((struct ib_mr *)uobject->object, &udata);
 }
@@ -115,8 +114,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
 	return 0;
 
 err_dereg:
-	ib_uverbs_init_udata_buf_or_null(&udata, NULL, NULL, 0, 0,
-					 uobj->context);
+	ib_uverbs_init_udata_buf_or_null(&udata, NULL, NULL, 0, 0);
 
 	ib_dereg_mr_user(mr, &udata);
 

@@ -993,7 +993,7 @@ struct ib_mr *hns_roce_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 				u32 max_num_sg);
 int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		       unsigned int *sg_offset);
-int hns_roce_dereg_mr(struct ib_mr *ibmr);
+int hns_roce_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
 int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
 		       struct hns_roce_cmd_mailbox *mailbox,
 		       unsigned long mpt_index);

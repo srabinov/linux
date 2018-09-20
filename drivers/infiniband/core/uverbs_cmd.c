@@ -3186,7 +3186,7 @@ int ib_uverbs_ex_create_wq(struct ib_uverbs_file *file,
 	return uobj_alloc_commit(&obj->uevent.uobject, 0);
 
 err_copy:
-	ib_destroy_wq(wq);
+	ib_destroy_wq(wq, uhw);
 err_put_cq:
 	uobj_put_obj_read(cq);
 err_put_pd:
