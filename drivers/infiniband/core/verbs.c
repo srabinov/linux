@@ -295,14 +295,15 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 EXPORT_SYMBOL(__ib_alloc_pd);
 
 /**
- * ib_dealloc_pd - Deallocates a protection domain.
+ * ib_dealloc_pd_user - Deallocates a protection domain.
  * @pd: The protection domain to deallocate.
+ * @udata: User data (if any)
  *
  * It is an error to call this function while any resources in the pd still
  * exist.  The caller is responsible to synchronously destroy them and
  * guarantee no new allocations will happen.
  */
-void ib_dealloc_pd(struct ib_pd *pd)
+void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata)
 {
 	int ret;
 
@@ -319,8 +320,25 @@ void ib_dealloc_pd(struct ib_pd *pd)
 	rdma_restrack_del(&pd->res);
 	/* Making delalloc_pd a void return is a WIP, no driver should return
 	   an error here. */
-	ret = pd->device->dealloc_pd(pd);
+	ret = pd->device->dealloc_pd(pd, udata);
 	WARN_ONCE(ret, "Infiniband HW driver failed dealloc_pd");
+}
+EXPORT_SYMBOL(ib_dealloc_pd_user);
+
+/**
+ * ib_dealloc_pd - Deallocates a protection domain.
+ * @pd: The protection domain to deallocate.
+ *
+ * It is an error to call this function while any resources in the pd still
+ * exist.  The caller is responsible to synchronously destroy them and
+ * guarantee no new allocations will happen.
+ *
+ * NOTE: Never call this function from uverbs!
+ */
+void ib_dealloc_pd(struct ib_pd *pd)
+{
+	WARN_ON(rdma_is_user_pd(pd));
+	ib_dealloc_pd_user(pd, NULL);
 }
 EXPORT_SYMBOL(ib_dealloc_pd);
 

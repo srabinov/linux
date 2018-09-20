@@ -181,13 +181,16 @@ static int uverbs_free_pd(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
 	struct ib_pd *pd = uobject->object;
+	struct ib_udata udata;
 	int ret;
 
 	ret = ib_destroy_usecnt(&pd->usecnt, why, uobject);
 	if (ret)
 		return ret;
 
-	ib_dealloc_pd((struct ib_pd *)uobject->object);
+	ib_uverbs_init_udata_buf_or_null(&udata, NULL, NULL, 0, 0);
+
+	ib_dealloc_pd_user((struct ib_pd *)uobject->object, &udata);
 	return 0;
 }
 

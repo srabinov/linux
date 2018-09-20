@@ -484,7 +484,7 @@ struct ib_pd *pvrdma_alloc_pd(struct ib_device *ibdev,
 		if (ib_copy_to_udata(udata, &pd_resp, sizeof(pd_resp))) {
 			dev_warn(&dev->pdev->dev,
 				 "failed to copy back protection domain\n");
-			pvrdma_dealloc_pd(&pd->ibpd);
+			pvrdma_dealloc_pd(&pd->ibpd, udata);
 			return ERR_PTR(-EFAULT);
 		}
 	}
@@ -505,7 +505,7 @@ err:
  *
  * @return: 0 on success, otherwise errno.
  */
-int pvrdma_dealloc_pd(struct ib_pd *pd)
+int pvrdma_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct pvrdma_dev *dev = to_vdev(pd->device);
 	union pvrdma_cmd_req req;

@@ -2284,7 +2284,7 @@ static struct ib_pd *mlx5_ib_alloc_pd(struct ib_device *ibdev,
 	return &pd->ibpd;
 }
 
-static int mlx5_ib_dealloc_pd(struct ib_pd *pd)
+static int mlx5_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *mdev = to_mdev(pd->device);
 	struct mlx5_ib_pd *mpd = to_mpd(pd);
@@ -4675,7 +4675,7 @@ error2:
 	mlx5_ib_destroy_cq(devr->c0);
 error1:
 	rdma_restrack_del(&devr->p0->res);
-	mlx5_ib_dealloc_pd(devr->p0);
+	mlx5_ib_dealloc_pd(devr->p0, NULL);
 error0:
 	return ret;
 }
@@ -4693,7 +4693,7 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 	rdma_restrack_del(&devr->c0->res);
 	mlx5_ib_destroy_cq(devr->c0);
 	rdma_restrack_del(&devr->p0->res);
-	mlx5_ib_dealloc_pd(devr->p0);
+	mlx5_ib_dealloc_pd(devr->p0, NULL);
 
 	/* Make sure no change P_Key work items are still executing */
 	for (port = 0; port < dev->num_ports; ++port)

@@ -725,7 +725,7 @@ static struct ib_pd *nes_alloc_pd(struct ib_device *ibdev,
 /**
  * nes_dealloc_pd
  */
-static int nes_dealloc_pd(struct ib_pd *ibpd)
+static int nes_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct nes_ucontext *nesucontext;
 	struct nes_pd *nespd = to_nespd(ibpd);

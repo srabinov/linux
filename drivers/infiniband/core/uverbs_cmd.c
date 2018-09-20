@@ -389,7 +389,7 @@ ssize_t ib_uverbs_alloc_pd(struct ib_uverbs_file *file,
 	return uobj_alloc_commit(uobj, in_len);
 
 err_copy:
-	ib_dealloc_pd(pd);
+	ib_dealloc_pd_user(pd, &udata);
 
 err:
 	uobj_alloc_abort(uobj);
