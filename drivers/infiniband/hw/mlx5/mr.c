@@ -1667,7 +1667,7 @@ static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 		kfree(mr);
 }
 
-int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
+int mlx5_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 {
 	dereg_mr(to_mdev(ibmr->device), to_mmr(ibmr));
 	return 0;

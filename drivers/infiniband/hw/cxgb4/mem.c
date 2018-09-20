@@ -793,7 +793,7 @@ int c4iw_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, c4iw_set_page);
 }
 
-int c4iw_dereg_mr(struct ib_mr *ib_mr)
+int c4iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 {
 	struct c4iw_dev *rhp;
 	struct c4iw_mr *mhp;

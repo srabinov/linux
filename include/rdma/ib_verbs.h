@@ -2436,7 +2436,8 @@ struct ib_device {
 						    int mr_access_flags,
 						    struct ib_pd *pd,
 						    struct ib_udata *udata);
-	int                        (*dereg_mr)(struct ib_mr *mr);
+	int                        (*dereg_mr)(struct ib_mr *mr,
+					       struct ib_udata *udata);
 	struct ib_mr *		   (*alloc_mr)(struct ib_pd *pd,
 					       enum ib_mr_type mr_type,
 					       u32 max_num_sg,
@@ -3769,6 +3770,16 @@ static inline void ib_dma_free_coherent(struct ib_device *dev,
 {
 	dma_free_coherent(dev->dma_device, size, cpu_addr, dma_handle);
 }
+
+/**
+ * ib_dereg_mr_user - Deregisters a memory region and removes it from the
+ *   HCA translation table.
+ * @mr: The memory region to deregister.
+ * @udata: User data (if any)
+ *
+ * This function can fail, if the memory region has memory windows bound to it.
+ */
+int ib_dereg_mr_user(struct ib_mr *mr, struct ib_udata *udata);
 
 /**
  * ib_dereg_mr - Deregisters a memory region and removes it from the

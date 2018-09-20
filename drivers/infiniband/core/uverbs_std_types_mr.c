@@ -36,7 +36,12 @@
 static int uverbs_free_mr(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why)
 {
-	return ib_dereg_mr((struct ib_mr *)uobject->object);
+	struct ib_udata udata;
+
+	ib_uverbs_init_udata_buf_or_null(&udata, NULL, NULL, 0, 0,
+					 uobject->context);
+
+	return ib_dereg_mr_user((struct ib_mr *)uobject->object, &udata);
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
@@ -50,6 +55,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
 	struct ib_pd *pd =
 		uverbs_attr_get_obj(attrs, UVERBS_ATTR_REG_DM_MR_PD_HANDLE);
 	struct ib_device *ib_dev = pd->device;
+	struct ib_udata udata;
 
 	struct ib_mr *mr;
 	int ret;
@@ -109,7 +115,10 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
 	return 0;
 
 err_dereg:
-	ib_dereg_mr(mr);
+	ib_uverbs_init_udata_buf_or_null(&udata, NULL, NULL, 0, 0,
+					 uobj->context);
+
+	ib_dereg_mr_user(mr, &udata);
 
 	return ret;
 }

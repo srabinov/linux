@@ -1062,7 +1062,7 @@ struct ib_mr *c4iw_reg_user_mr(struct ib_pd *pd, u64 start,
 					   u64 length, u64 virt, int acc,
 					   struct ib_udata *udata);
 struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc);
-int c4iw_dereg_mr(struct ib_mr *ib_mr);
+int c4iw_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
 int c4iw_destroy_cq(struct ib_cq *ib_cq);
 struct ib_cq *c4iw_create_cq(struct ib_device *ibdev,
 			     const struct ib_cq_init_attr *attr,

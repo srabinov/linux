@@ -1001,7 +1001,7 @@ err:
 	return ERR_PTR(err);
 }
 
-static int mthca_dereg_mr(struct ib_mr *mr)
+static int mthca_dereg_mr(struct ib_mr *mr, struct ib_udata *udata)
 {
 	struct mthca_mr *mmr = to_mmr(mr);
 

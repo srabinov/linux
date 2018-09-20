@@ -415,7 +415,7 @@ static struct ib_pd *iwch_allocate_pd(struct ib_device *ibdev,
 	return &php->ibpd;
 }
 
-static int iwch_dereg_mr(struct ib_mr *ib_mr)
+static int iwch_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 {
 	struct iwch_dev *rhp;
 	struct iwch_mr *mhp;
@@ -604,7 +604,7 @@ pbl_done:
 			 uresp.pbl_addr);
 
 		if (ib_copy_to_udata(udata, &uresp, sizeof (uresp))) {
-			iwch_dereg_mr(&mhp->ibmr);
+			iwch_dereg_mr(&mhp->ibmr, udata);
 			err = -EFAULT;
 			goto err;
 		}
