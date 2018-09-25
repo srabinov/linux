@@ -544,7 +544,7 @@ static int rxe_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	return 0;
 }
 
-static int rxe_destroy_qp(struct ib_qp *ibqp)
+static int rxe_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
 	struct rxe_qp *qp = to_rqp(ibqp);
 

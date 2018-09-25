@@ -76,6 +76,7 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 	struct ib_qp *qp = uobject->object;
 	struct ib_uqp_object *uqp =
 		container_of(uobject, struct ib_uqp_object, uevent.uobject);
+	struct ib_udata udata;
 	int ret;
 
 	/*
@@ -92,7 +93,9 @@ static int uverbs_free_qp(struct ib_uobject *uobject,
 		ib_uverbs_detach_umcast(qp, uqp);
 	}
 
-	ret = ib_destroy_qp(qp);
+	ib_uverbs_init_udata_buf_or_null(&udata, NULL, NULL, 0, 0);
+
+	ret = ib_destroy_qp_user(qp, &udata);
 	if (ib_is_destroy_retryable(ret, why, uobject))
 		return ret;
 

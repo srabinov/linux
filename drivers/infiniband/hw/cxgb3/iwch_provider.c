@@ -757,7 +757,7 @@ static int iwch_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 	return ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, iwch_set_page);
 }
 
-static int iwch_destroy_qp(struct ib_qp *ib_qp)
+static int iwch_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 {
 	struct iwch_dev *rhp;
 	struct iwch_qp *qhp;
@@ -899,14 +899,14 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 
 		mm1 = kmalloc(sizeof *mm1, GFP_KERNEL);
 		if (!mm1) {
-			iwch_destroy_qp(&qhp->ibqp);
+			iwch_destroy_qp(&qhp->ibqp, udata);
 			return ERR_PTR(-ENOMEM);
 		}
 
 		mm2 = kmalloc(sizeof *mm2, GFP_KERNEL);
 		if (!mm2) {
 			kfree(mm1);
-			iwch_destroy_qp(&qhp->ibqp);
+			iwch_destroy_qp(&qhp->ibqp, udata);
 			return ERR_PTR(-ENOMEM);
 		}
 
@@ -923,7 +923,7 @@ static struct ib_qp *iwch_create_qp(struct ib_pd *pd,
 		if (ib_copy_to_udata(udata, &uresp, sizeof (uresp))) {
 			kfree(mm1);
 			kfree(mm2);
-			iwch_destroy_qp(&qhp->ibqp);
+			iwch_destroy_qp(&qhp->ibqp, udata);
 			return ERR_PTR(-EFAULT);
 		}
 		mm1->key = uresp.key;

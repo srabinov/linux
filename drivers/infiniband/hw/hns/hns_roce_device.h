@@ -793,7 +793,7 @@ struct hns_roce_hw {
 	int (*modify_qp)(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			 int attr_mask, enum ib_qp_state cur_state,
 			 enum ib_qp_state new_state);
-	int (*destroy_qp)(struct ib_qp *ibqp);
+	int (*destroy_qp)(struct ib_qp *ibqp, struct ib_udata *udata);
 	int (*post_send)(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			 const struct ib_send_wr **bad_wr);
 	int (*post_recv)(struct ib_qp *qp, const struct ib_recv_wr *recv_wr,

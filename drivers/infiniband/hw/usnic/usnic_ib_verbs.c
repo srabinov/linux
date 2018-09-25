@@ -559,7 +559,7 @@ out_release_mutex:
 	return ERR_PTR(err);
 }
 
-int usnic_ib_destroy_qp(struct ib_qp *qp)
+int usnic_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 {
 	struct usnic_ib_qp_grp *qp_grp;
 	struct usnic_ib_vf *vf;

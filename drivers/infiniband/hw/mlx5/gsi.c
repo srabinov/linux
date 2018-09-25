@@ -113,7 +113,8 @@ static void handle_single_completion(struct ib_cq *cq, struct ib_wc *wc)
 }
 
 struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
-				    struct ib_qp_init_attr *init_attr)
+				    struct ib_qp_init_attr *init_attr,
+				    struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
 	struct mlx5_ib_gsi_qp *gsi;
@@ -184,7 +185,7 @@ struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,
 		hw_init_attr.cap.max_send_sge = 0;
 		hw_init_attr.cap.max_inline_data = 0;
 	}
-	gsi->rx_qp = ib_create_qp(pd, &hw_init_attr);
+	gsi->rx_qp = ib_create_qp_user(pd, &hw_init_attr, udata);
 	if (IS_ERR(gsi->rx_qp)) {
 		mlx5_ib_warn(dev, "unable to create hardware GSI QP. error %ld\n",
 			     PTR_ERR(gsi->rx_qp));

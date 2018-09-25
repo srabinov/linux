@@ -1333,7 +1333,7 @@ static void nes_clean_cq(struct nes_qp *nesqp, struct nes_cq *nescq)
 /**
  * nes_destroy_qp
  */
-static int nes_destroy_qp(struct ib_qp *ibqp)
+static int nes_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
 	struct nes_qp *nesqp = to_nesqp(ibqp);
 	struct nes_ucontext *nes_ucontext;

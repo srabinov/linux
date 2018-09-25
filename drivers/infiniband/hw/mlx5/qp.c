@@ -2554,7 +2554,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		break;
 
 	case IB_QPT_GSI:
-		return mlx5_ib_gsi_create_qp(pd, init_attr);
+		return mlx5_ib_gsi_create_qp(pd, init_attr, udata);
 
 	case IB_QPT_RAW_IPV6:
 	case IB_QPT_RAW_ETHERTYPE:
@@ -2591,7 +2591,7 @@ static int mlx5_ib_destroy_dct(struct mlx5_ib_qp *mqp)
 	return 0;
 }
 
-int mlx5_ib_destroy_qp(struct ib_qp *qp)
+int mlx5_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(qp->device);
 	struct mlx5_ib_qp *mqp = to_mqp(qp);

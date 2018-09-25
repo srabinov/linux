@@ -848,14 +848,14 @@ static int hns_roce_v1_rsv_lp_qp(struct hns_roce_dev *hr_dev)
 	return 0;
 
 create_lp_qp_failed:
-	for (i -= 1; i >= 0; i--) {
-		hr_qp = free_mr->mr_free_qp[i];
-		if (hns_roce_v1_destroy_qp(&hr_qp->ibqp))
-			dev_err(dev, "Destroy qp %d for mr free failed!\n", i);
-	}
-
 	/* we expect kernel pd w/o udata here! */
 	WARN_ON(rdma_is_user_pd(pd));
+
+	for (i -= 1; i >= 0; i--) {
+		hr_qp = free_mr->mr_free_qp[i];
+		if (hns_roce_v1_destroy_qp(&hr_qp->ibqp, NULL))
+			dev_err(dev, "Destroy qp %d for mr free failed!\n", i);
+	}
 
 	if (hns_roce_dealloc_pd(pd, NULL))
 		dev_err(dev, "Destroy pd for create_lp_qp failed!\n");
@@ -879,12 +879,15 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 	priv = (struct hns_roce_v1_priv *)hr_dev->priv;
 	free_mr = &priv->free_mr;
 
+	/* we expect kernel pd w/o udata here! */
+	WARN_ON(rdma_is_user_pd(&free_mr->mr_free_pd->ibpd));
+
 	for (i = 0; i < HNS_ROCE_V1_RESV_QP; i++) {
 		hr_qp = free_mr->mr_free_qp[i];
 		if (!hr_qp)
 			continue;
 
-		ret = hns_roce_v1_destroy_qp(&hr_qp->ibqp);
+		ret = hns_roce_v1_destroy_qp(&hr_qp->ibqp, NULL);
 		if (ret)
 			dev_err(dev, "Destroy qp %d for mr free failed(%d)!\n",
 				i, ret);
@@ -893,9 +896,6 @@ static void hns_roce_v1_release_lp_qp(struct hns_roce_dev *hr_dev)
 	ret = hns_roce_ib_destroy_cq(&free_mr->mr_free_cq->ib_cq);
 	if (ret)
 		dev_err(dev, "Destroy cq for mr_free failed(%d)!\n", ret);
-
-	/* we expect kernel pd w/o udata here! */
-	WARN_ON(rdma_is_user_pd(&free_mr->mr_free_pd->ibpd));
 
 	ret = hns_roce_dealloc_pd(&free_mr->mr_free_pd->ibpd, NULL);
 	if (ret)
@@ -3923,7 +3923,7 @@ static void hns_roce_v1_destroy_qp_work_fn(struct work_struct *work)
 	dev_dbg(dev, "Accomplished destroy QP(0x%lx) work.\n", qpn);
 }
 
-int hns_roce_v1_destroy_qp(struct ib_qp *ibqp)
+int hns_roce_v1_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);

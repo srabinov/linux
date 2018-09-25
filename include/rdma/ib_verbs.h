@@ -2399,7 +2399,8 @@ struct ib_device {
 					       struct ib_qp_attr *qp_attr,
 					       int qp_attr_mask,
 					       struct ib_qp_init_attr *qp_init_attr);
-	int                        (*destroy_qp)(struct ib_qp *qp);
+	int                        (*destroy_qp)(struct ib_qp *qp,
+						 struct ib_udata *udata);
 	int                        (*post_send)(struct ib_qp *qp,
 						const struct ib_send_wr *send_wr,
 						const struct ib_send_wr **bad_send_wr);
@@ -3333,12 +3334,26 @@ static inline int ib_post_srq_recv(struct ib_srq *srq,
 }
 
 /**
+ * ib_create_qp_user - Creates a QP associated with the specified protection
+ *   domain.
+ * @pd: The protection domain associated with the QP.
+ * @qp_init_attr: A list of initial attributes required to create the
+ *   QP.  If QP creation succeeds, then the attributes are updated to
+ *   the actual capabilities of the created QP.
+ * @udata: User data (if any)
+ */
+struct ib_qp *ib_create_qp_user(struct ib_pd *pd,
+				struct ib_qp_init_attr *qp_init_attr,
+				struct ib_udata *udata);
+/**
  * ib_create_qp - Creates a QP associated with the specified protection
  *   domain.
  * @pd: The protection domain associated with the QP.
  * @qp_init_attr: A list of initial attributes required to create the
  *   QP.  If QP creation succeeds, then the attributes are updated to
  *   the actual capabilities of the created QP.
+ *
+ *   NOTE: Never call this function from uverbs!
  */
 struct ib_qp *ib_create_qp(struct ib_pd *pd,
 			   struct ib_qp_init_attr *qp_init_attr);
@@ -3389,8 +3404,18 @@ int ib_query_qp(struct ib_qp *qp,
 		struct ib_qp_init_attr *qp_init_attr);
 
 /**
+ * ib_destroy_qp_user - Destroys the specified QP.
+ * @qp: The QP to destroy.
+ * @udata: User data (if any)
+ */
+int ib_destroy_qp_user(struct ib_qp *qp,
+		       struct ib_udata *udata);
+
+/**
  * ib_destroy_qp - Destroys the specified QP.
  * @qp: The QP to destroy.
+ *
+ * NOTE: Never call this function from uverbs!
  */
 int ib_destroy_qp(struct ib_qp *qp);
 

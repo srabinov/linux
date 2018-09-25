@@ -1572,7 +1572,8 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 		if (is_eth &&
 		    dev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2) {
 			init_attr->create_flags |= MLX4_IB_QP_CREATE_ROCE_V2_GSI;
-			sqp->roce_v2_gsi = ib_create_qp(pd, init_attr);
+			sqp->roce_v2_gsi = ib_create_qp_user(pd, init_attr,
+							     udata);
 
 			if (IS_ERR(sqp->roce_v2_gsi)) {
 				pr_err("Failed to create GSI QP for RoCEv2 (%ld)\n", PTR_ERR(sqp->roce_v2_gsi));
@@ -1623,7 +1624,7 @@ static int _mlx4_ib_destroy_qp(struct ib_qp *qp)
 	return 0;
 }
 
-int mlx4_ib_destroy_qp(struct ib_qp *qp)
+int mlx4_ib_destroy_qp(struct ib_qp *qp, struct ib_udata *udata)
 {
 	struct mlx4_ib_qp *mqp = to_mqp(qp);
 

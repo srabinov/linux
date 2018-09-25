@@ -1788,7 +1788,7 @@ ssize_t ib_uverbs_open_qp(struct ib_uverbs_file *file,
 	return uobj_alloc_commit(&obj->uevent.uobject, in_len);
 
 err_destroy:
-	ib_destroy_qp(qp);
+	ib_destroy_qp_user(qp, &udata);
 err_xrcd:
 	uobj_put_read(xrcd_uobj);
 err_put:
