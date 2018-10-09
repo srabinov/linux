@@ -4574,7 +4574,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->p0->uobject = NULL;
 	atomic_set(&devr->p0->usecnt, 0);
 	devr->p0->res.type = RDMA_RESTRACK_PD;
-	rdma_restrack_add(&devr->p0->res);
+	rdma_restrack_kadd(&devr->p0->res);
 
 	devr->c0 = mlx5_ib_create_cq(&dev->ib_dev, &cq_attr, NULL, NULL);
 	if (IS_ERR(devr->c0)) {
@@ -4588,7 +4588,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->c0->cq_context    = NULL;
 	atomic_set(&devr->c0->usecnt, 0);
 	devr->c0->res.type = RDMA_RESTRACK_CQ;
-	rdma_restrack_add(&devr->c0->res);
+	rdma_restrack_kadd(&devr->c0->res);
 
 	devr->x0 = mlx5_ib_alloc_xrcd(&dev->ib_dev, NULL, NULL);
 	if (IS_ERR(devr->x0)) {
