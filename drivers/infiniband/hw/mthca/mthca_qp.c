@@ -948,21 +948,23 @@ static int mthca_max_data_size(struct mthca_dev *dev, struct mthca_qp *qp, int d
 	return max_data_size;
 }
 
-static inline int mthca_max_inline_data(struct mthca_pd *pd, int max_data_size)
+static inline int mthca_max_inline_data(struct mthca_pd *pd, int max_data_size,
+					struct ib_udata *udata)
 {
 	/* We don't support inline data for kernel QPs (yet). */
-	return pd->ibpd.uobject ? max_data_size - MTHCA_INLINE_HEADER_SIZE : 0;
+	return udata ? max_data_size - MTHCA_INLINE_HEADER_SIZE : 0;
 }
 
 static void mthca_adjust_qp_caps(struct mthca_dev *dev,
 				 struct mthca_pd *pd,
-				 struct mthca_qp *qp)
+				 struct mthca_qp *qp,
+				 struct ib_udata *udata)
 {
 	int max_data_size = mthca_max_data_size(dev, qp,
 						min(dev->limits.max_desc_sz,
 						    1 << qp->sq.wqe_shift));
 
-	qp->max_inline_data = mthca_max_inline_data(pd, max_data_size);
+	qp->max_inline_data = mthca_max_inline_data(pd, max_data_size, udata);
 
 	qp->sq.max_gs = min_t(int, dev->limits.max_sg,
 			      max_data_size / sizeof (struct mthca_data_seg));
@@ -981,7 +983,8 @@ static void mthca_adjust_qp_caps(struct mthca_dev *dev,
  */
 static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 			       struct mthca_pd *pd,
-			       struct mthca_qp *qp)
+			       struct mthca_qp *qp,
+			       struct ib_udata *udata)
 {
 	int size;
 	int err = -ENOMEM;
@@ -1048,7 +1051,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 	 * allocate anything.  All we need is to calculate the WQE
 	 * sizes and the send_wqe_offset, so we're done now.
 	 */
-	if (pd->ibpd.uobject)
+	if (udata)
 		return 0;
 
 	size = PAGE_ALIGN(qp->send_wqe_offset +
@@ -1155,7 +1158,8 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 				 struct mthca_cq *send_cq,
 				 struct mthca_cq *recv_cq,
 				 enum ib_sig_type send_policy,
-				 struct mthca_qp *qp)
+				 struct mthca_qp *qp,
+				 struct ib_udata *udata)
 {
 	int ret;
 	int i;
@@ -1178,20 +1182,20 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 	if (ret)
 		return ret;
 
-	ret = mthca_alloc_wqe_buf(dev, pd, qp);
+	ret = mthca_alloc_wqe_buf(dev, pd, qp, udata);
 	if (ret) {
 		mthca_unmap_memfree(dev, qp);
 		return ret;
 	}
 
-	mthca_adjust_qp_caps(dev, pd, qp);
+	mthca_adjust_qp_caps(dev, pd, qp, udata);
 
 	/*
 	 * If this is a userspace QP, we're done now.  The doorbells
 	 * will be allocated and buffers will be initialized in
 	 * userspace.
 	 */
-	if (pd->ibpd.uobject)
+	if (udata)
 		return 0;
 
 	ret = mthca_alloc_memfree(dev, qp);
@@ -1240,7 +1244,8 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 }
 
 static int mthca_set_qp_size(struct mthca_dev *dev, struct ib_qp_cap *cap,
-			     struct mthca_pd *pd, struct mthca_qp *qp)
+			     struct mthca_pd *pd, struct mthca_qp *qp,
+			     struct ib_udata *udata)
 {
 	int max_data_size = mthca_max_data_size(dev, qp, dev->limits.max_desc_sz);
 
@@ -1249,7 +1254,8 @@ static int mthca_set_qp_size(struct mthca_dev *dev, struct ib_qp_cap *cap,
 	    cap->max_recv_wr  	 > dev->limits.max_wqes ||
 	    cap->max_send_sge 	 > dev->limits.max_sg   ||
 	    cap->max_recv_sge 	 > dev->limits.max_sg   ||
-	    cap->max_inline_data > mthca_max_inline_data(pd, max_data_size))
+	    cap->max_inline_data >
+		mthca_max_inline_data(pd, max_data_size, udata))
 		return -EINVAL;
 
 	/*
@@ -1285,7 +1291,8 @@ int mthca_alloc_qp(struct mthca_dev *dev,
 		   enum ib_qp_type type,
 		   enum ib_sig_type send_policy,
 		   struct ib_qp_cap *cap,
-		   struct mthca_qp *qp)
+		   struct mthca_qp *qp,
+		   struct ib_udata *udata)
 {
 	int err;
 
@@ -1296,7 +1303,7 @@ int mthca_alloc_qp(struct mthca_dev *dev,
 	default: return -EINVAL;
 	}
 
-	err = mthca_set_qp_size(dev, cap, pd, qp);
+	err = mthca_set_qp_size(dev, cap, pd, qp, udata);
 	if (err)
 		return err;
 
@@ -1308,7 +1315,7 @@ int mthca_alloc_qp(struct mthca_dev *dev,
 	qp->port = 0;
 
 	err = mthca_alloc_qp_common(dev, pd, send_cq, recv_cq,
-				    send_policy, qp);
+				    send_policy, qp, udata);
 	if (err) {
 		mthca_free(&dev->qp_table.alloc, qp->qpn);
 		return err;
@@ -1360,13 +1367,14 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 		    struct ib_qp_cap *cap,
 		    int qpn,
 		    int port,
-		    struct mthca_sqp *sqp)
+		    struct mthca_sqp *sqp,
+		    struct ib_udata *udata)
 {
 	u32 mqpn = qpn * 2 + dev->qp_table.sqp_start + port - 1;
 	int err;
 
 	sqp->qp.transport = MLX;
-	err = mthca_set_qp_size(dev, cap, pd, &sqp->qp);
+	err = mthca_set_qp_size(dev, cap, pd, &sqp->qp, udata);
 	if (err)
 		return err;
 
@@ -1391,7 +1399,7 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 	sqp->qp.transport = MLX;
 
 	err = mthca_alloc_qp_common(dev, pd, send_cq, recv_cq,
-				    send_policy, &sqp->qp);
+				    send_policy, &sqp->qp, udata);
 	if (err)
 		goto err_out_free;
 

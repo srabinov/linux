@@ -4096,7 +4096,7 @@ static int hns_roce_v2_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
 	int ret;
 
-	ret = hns_roce_v2_destroy_qp_common(hr_dev, hr_qp, !!ibqp->pd->uobject);
+	ret = hns_roce_v2_destroy_qp_common(hr_dev, hr_qp, !!udata);
 	if (ret) {
 		dev_err(hr_dev->dev, "Destroy qp failed(%d)\n", ret);
 		return ret;

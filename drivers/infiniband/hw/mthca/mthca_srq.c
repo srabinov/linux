@@ -145,14 +145,14 @@ static void mthca_free_srq_buf(struct mthca_dev *dev, struct mthca_srq *srq)
 }
 
 static int mthca_alloc_srq_buf(struct mthca_dev *dev, struct mthca_pd *pd,
-			       struct mthca_srq *srq)
+			       struct mthca_srq *srq, struct ib_udata *udata)
 {
 	struct mthca_data_seg *scatter;
 	void *wqe;
 	int err;
 	int i;
 
-	if (pd->ibpd.uobject)
+	if (udata)
 		return 0;
 
 	srq->wrid = kmalloc_array(srq->max, sizeof(u64), GFP_KERNEL);
@@ -197,7 +197,8 @@ static int mthca_alloc_srq_buf(struct mthca_dev *dev, struct mthca_pd *pd,
 }
 
 int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
-		    struct ib_srq_attr *attr, struct mthca_srq *srq)
+		    struct ib_srq_attr *attr, struct mthca_srq *srq,
+		    struct ib_udata *udata)
 {
 	struct mthca_mailbox *mailbox;
 	int ds;
@@ -235,7 +236,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 		if (err)
 			goto err_out;
 
-		if (!pd->ibpd.uobject) {
+		if (!udata) {
 			srq->db_index = mthca_alloc_db(dev, MTHCA_DB_TYPE_SRQ,
 						       srq->srqn, &srq->db);
 			if (srq->db_index < 0) {
@@ -251,7 +252,7 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 		goto err_out_db;
 	}
 
-	err = mthca_alloc_srq_buf(dev, pd, srq);
+	err = mthca_alloc_srq_buf(dev, pd, srq, udata);
 	if (err)
 		goto err_out_mailbox;
 
@@ -297,14 +298,14 @@ err_out_free_srq:
 		mthca_warn(dev, "HW2SW_SRQ failed (%d)\n", err);
 
 err_out_free_buf:
-	if (!pd->ibpd.uobject)
+	if (!udata)
 		mthca_free_srq_buf(dev, srq);
 
 err_out_mailbox:
 	mthca_free_mailbox(dev, mailbox);
 
 err_out_db:
-	if (!pd->ibpd.uobject && mthca_is_memfree(dev))
+	if (!udata && mthca_is_memfree(dev))
 		mthca_free_db(dev, MTHCA_DB_TYPE_SRQ, srq->db_index);
 
 err_out_icm:

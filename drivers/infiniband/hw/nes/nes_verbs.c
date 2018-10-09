@@ -734,7 +734,7 @@ static int nes_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 
-	if ((ibpd->uobject) && (ibpd->uobject->context)) {
+	if (udata && (ibpd->uobject->context)) {
 		nesucontext = to_nesucontext(ibpd->uobject->context);
 		nes_debug(NES_DBG_PD, "Clearing bit %u from allocated doorbells\n",
 				nespd->mmap_db_index);
@@ -1067,7 +1067,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 				}
 				if (req.user_qp_buffer)
 					nesqp->nesuqp_addr = req.user_qp_buffer;
-				if ((ibpd->uobject) && (ibpd->uobject->context)) {
+				if (udata && (ibpd->uobject->context)) {
 					nesqp->user_mode = 1;
 					nes_ucontext = to_nesucontext(ibpd->uobject->context);
 					if (virt_wqs) {
@@ -1258,7 +1258,7 @@ static struct ib_qp *nes_create_qp(struct ib_pd *ibpd,
 
 			nes_put_cqp_request(nesdev, cqp_request);
 
-			if (ibpd->uobject) {
+			if (udata) {
 				uresp.mmap_sq_db_index = nesqp->mmap_sq_db_index;
 				uresp.mmap_rq_db_index = 0;
 				uresp.actual_sq_size = sq_size;
