@@ -4573,6 +4573,8 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->p0->device  = &dev->ib_dev;
 	devr->p0->uobject = NULL;
 	atomic_set(&devr->p0->usecnt, 0);
+	devr->p0->res.type = RDMA_RESTRACK_PD;
+	rdma_restrack_add(&devr->p0->res);
 
 	devr->c0 = mlx5_ib_create_cq(&dev->ib_dev, &cq_attr, NULL, NULL);
 	if (IS_ERR(devr->c0)) {
@@ -4585,6 +4587,8 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 	devr->c0->event_handler = NULL;
 	devr->c0->cq_context    = NULL;
 	atomic_set(&devr->c0->usecnt, 0);
+	devr->c0->res.type = RDMA_RESTRACK_CQ;
+	rdma_restrack_add(&devr->c0->res);
 
 	devr->x0 = mlx5_ib_alloc_xrcd(&dev->ib_dev, NULL, NULL);
 	if (IS_ERR(devr->x0)) {
@@ -4667,8 +4671,10 @@ error4:
 error3:
 	mlx5_ib_dealloc_xrcd(devr->x0);
 error2:
+	rdma_restrack_del(&devr->c0->res);
 	mlx5_ib_destroy_cq(devr->c0);
 error1:
+	rdma_restrack_del(&devr->p0->res);
 	mlx5_ib_dealloc_pd(devr->p0);
 error0:
 	return ret;
@@ -4684,7 +4690,9 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 	mlx5_ib_destroy_srq(devr->s0);
 	mlx5_ib_dealloc_xrcd(devr->x0);
 	mlx5_ib_dealloc_xrcd(devr->x1);
+	rdma_restrack_del(&devr->c0->res);
 	mlx5_ib_destroy_cq(devr->c0);
+	rdma_restrack_del(&devr->p0->res);
 	mlx5_ib_dealloc_pd(devr->p0);
 
 	/* Make sure no change P_Key work items are still executing */
