@@ -98,9 +98,6 @@ static inline void uobj_put_read(struct ib_uobject *uobj)
 	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_READ);
 }
 
-#define uobj_put_obj_read(_obj)					\
-	uobj_put_read((_obj)->uobject)
-
 static inline void uobj_put_write(struct ib_uobject *uobj)
 {
 	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
