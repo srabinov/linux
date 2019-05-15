@@ -64,9 +64,11 @@ static inline void *_uobj_get_obj_read(struct ib_uobject *uobj)
 		return NULL;
 	return uobj->object;
 }
-#define uobj_get_obj_read(_object, _type, _id, _attrs)                         \
-	((struct ib_##_object *)_uobj_get_obj_read(                            \
-		uobj_get_read(_type, _id, _attrs)))
+#define uobj_get_obj_read(_object, _type, _id, _attrs, _uobj)                  \
+({                                                                             \
+	*_uobj = uobj_get_read(_type, _id, _attrs);                            \
+	((struct ib_##_object *)_uobj_get_obj_read(*_uobj));                   \
+})
 
 #define uobj_get_write(_type, _id, _attrs)                                     \
 	rdma_lookup_get_uobject(uobj_get_type(_attrs, _type), (_attrs)->ufile, \
