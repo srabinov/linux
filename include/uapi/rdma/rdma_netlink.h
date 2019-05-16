@@ -479,6 +479,9 @@ enum rdma_nldev_attr {
 	 */
 	RDMA_NLDEV_NET_NS_FD,			/* u32 */
 
+	RDMA_NLDEV_ATTR_RES_CTX,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_CTX_ENTRY,		/* nested table */
+
 	/*
 	 * Always the end
 	 */
