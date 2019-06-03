@@ -163,6 +163,8 @@ struct ib_uverbs_file {
 	struct page *disassociate_page;
 
 	struct xarray		idr;
+
+	struct file	       *filp;
 };
 
 struct ib_uverbs_event {
