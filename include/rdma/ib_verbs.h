@@ -1568,6 +1568,13 @@ struct ib_uobject {
 	struct rcu_head		rcu;		/* kfree_rcu() overhead */
 
 	const struct uverbs_api_object *uapi_object;
+
+	/*
+	 * ib_x hw object sharing support
+	 * - NULL for objects which are not share-able
+	 * - point to ib_x share counter for share-able objects
+	 */
+	atomic_t	       *share_count;	/* ib_x object share count */
 };
 
 struct ib_udata {
