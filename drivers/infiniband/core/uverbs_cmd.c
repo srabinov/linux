@@ -43,6 +43,7 @@
 
 #include <rdma/uverbs_types.h>
 #include <rdma/uverbs_std_types.h>
+#include <rdma/uverbs_ioctl.h>
 #include "rdma_core.h"
 
 #include "uverbs.h"
@@ -3754,6 +3755,185 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 	return ret;
 }
 
+enum direction {
+	DIR_EXPORT,
+	DIR_IMPORT,
+};
+
+/* ib_uverbs_export_import_lock - Helper function that gather code which
+ *	is shared between export_to_fd verb and the matching import verbs.
+ *
+ *	This function guarntee that both source and destination files are
+ *	protected from races with vfs close. The current file is protected
+ *	from such race as we are in the middle of write call. The other file
+ *	is protected by 'fget'. This function also ensure that ib_uobject
+ *	identified by the type & handle is locked for read.
+ *
+ *	Callers of this helper must also call ib_uverbs_export_import_unlock
+ *	to undo any locking performed by this helper.
+ */
+static int ib_uverbs_export_import_lock(struct uverbs_attr_bundle *attrs,
+					int fd, u16 type, u32 handle,
+					enum direction dir,
+					struct ib_uobject **uobj,
+					struct file **filep,
+					struct ib_uverbs_file **ufile)
+{
+	struct ib_uverbs_file *file = attrs->ufile;
+	struct ib_uverbs_device *dev = file->device;
+	struct uverbs_attr_bundle *attr = NULL;
+	struct uverbs_attr_bundle fd_attrs;
+	struct ib_uverbs_device *fd_dev;
+	int ret = 0;
+
+	*filep = fget(fd);
+	if (!*filep)
+		return -EINVAL;
+
+	/* check uverbs ops exist */
+	if ((*filep)->f_op != file->filp->f_op) {
+		ret = -EINVAL;
+		goto file;
+	}
+
+	*ufile = (*filep)->private_data;
+	fd_dev = (*ufile)->device;
+
+	/* check that both files belong to same ib_device */
+	if (dev != fd_dev) {
+		ret = -EINVAL;
+		goto file;
+	}
+
+	/* figure the right attr based on the op direction */
+	switch (dir) {
+	case DIR_EXPORT:
+		attr = attrs;
+		break;
+	case DIR_IMPORT:
+		uverbs_init_attrs_ufile(&fd_attrs, *ufile);
+		attr = &fd_attrs;
+		break;
+	}
+
+	if (!attr) {
+		ret = -EINVAL;
+		goto file;
+	}
+
+	*uobj = uobj_get_read(type, handle, attr);
+	if (IS_ERR(*uobj)) {
+		ret = -EINVAL;
+		goto file;
+	}
+
+	/* verify ib_object is shareable */
+	if (!(*uobj)->refcnt) {
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	return 0;
+uobj:
+	uobj_put_read(*uobj);
+file:
+	fput(*filep);
+	return ret;
+}
+
+static void ib_uverbs_export_import_unlock(struct ib_uobject *uobj,
+					   struct file *filep)
+{
+	uobj_put_read(uobj);
+	fput(filep);
+}
+
+static int ib_uverbs_export_to_fd(struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uverbs_export_to_fd_resp resp = {};
+	struct uverbs_attr_bundle dst_attrs;
+	struct ib_uobject *src_uobj = NULL;
+	struct ib_uobject *dst_uobj = NULL;
+	struct ib_uverbs_export_to_fd cmd;
+	struct ib_uverbs_file *dst_file;
+	struct ib_device *ib_dev;
+	struct file *filep;
+	int ret;
+
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
+
+	/* for every share-able object type add case below... */
+	switch (cmd.type) {
+	/* Example:
+	 *
+	 * case UVERBS_OBJECT_PD:
+	 *      break;
+	 */
+	default:
+		/* invalid type! */
+		pr_warn("%s: invalid obj type %d\n", __func__, cmd.type);
+		return -EINVAL;
+	}
+
+	ret = ib_uverbs_export_import_lock(attrs, cmd.fd, cmd.type, cmd.handle,
+					   DIR_EXPORT, &src_uobj, &filep,
+					   &dst_file);
+	if (ret)
+		return ret;
+
+	/* create minimal attrs for dst file */
+	uverbs_init_attrs_ufile(&dst_attrs, dst_file);
+
+	/* allocate new uobj from same type on dst file */
+	dst_uobj = uobj_alloc(cmd.type, &dst_attrs, &ib_dev);
+	if (IS_ERR(dst_uobj)) {
+		ret = -ENOMEM;
+		goto uobj;
+	}
+
+	dst_uobj->object = src_uobj->object;
+	dst_uobj->refcnt = src_uobj->refcnt;
+
+	if (WARN_ON(!atomic_inc_not_zero(src_uobj->refcnt))) {
+		/* use after free! */
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	resp.handle = dst_uobj->id;
+
+	if (copy_to_user((void __user *) (unsigned long) cmd.response,
+	    &resp, sizeof(resp))) {
+		ret = -EFAULT;
+		goto usecnt;
+	}
+
+	ret = uobj_alloc_commit(dst_uobj, &dst_attrs);
+
+	/* only release the dst file after we commit the dst_uobj */
+	ib_uverbs_export_import_unlock(src_uobj, filep);
+
+	return ret;
+
+usecnt:
+	/*
+	 * ib_X reference count should be at least 2 here because
+	 * the reference coint has 1 ref for the src_obj and
+	 * 1 for the dst_obj. If this WARN_ON is seen, someone
+	 * else released the ib_x object under our feet...!
+	 */
+	WARN_ON(atomic_dec_return(src_uobj->refcnt) < 1);
+uobj:
+	ib_uverbs_export_import_unlock(src_uobj, filep);
+
+	if (!IS_ERR_OR_NULL(dst_uobj))
+		uobj_alloc_abort(dst_uobj, &dst_attrs);
+
+	return ret;
+}
+
 /*
  * Describe the input structs for write(). Some write methods have an input
  * only struct, most have an input and output. If the struct has an output then
@@ -3889,6 +4069,11 @@ const struct uapi_definition uverbs_def_write_intf[] = {
 			UAPI_DEF_WRITE_IO(struct ib_uverbs_query_port,
 					  struct ib_uverbs_query_port_resp),
 			UAPI_DEF_METHOD_NEEDS_FN(query_port)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_EXPORT_TO_FD,
+			ib_uverbs_export_to_fd,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_export_to_fd,
+					  struct ib_uverbs_export_to_fd_resp)),
 		DECLARE_UVERBS_WRITE_EX(
 			IB_USER_VERBS_EX_CMD_QUERY_DEVICE,
 			ib_uverbs_ex_query_device,
