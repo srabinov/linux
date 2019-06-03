@@ -516,7 +516,26 @@ static int __must_check destroy_hw_idr_uobject(struct ib_uobject *uobj,
 	const struct uverbs_obj_idr_type *idr_type =
 		container_of(uobj->uapi_object->type_attrs,
 			     struct uverbs_obj_idr_type, type);
-	int ret = idr_type->destroy_object(uobj, why, attrs);
+	static DEFINE_MUTEX(lock);
+	int ret, count;
+
+	mutex_lock(&lock);
+
+	if (uobj->refcnt) {
+		count = atomic_dec_return(uobj->refcnt);
+		WARN_ON(count < 0); /* use after free! */
+		if (count) {
+			mutex_unlock(&lock);
+			goto skip;
+		}
+	}
+
+	ret = idr_type->destroy_object(uobj, why, attrs);
+
+	if (ret)
+		atomic_inc(uobj->refcnt);
+
+	mutex_unlock(&lock);
 
 	/*
 	 * We can only fail gracefully if the user requested to destroy the
@@ -525,7 +544,7 @@ static int __must_check destroy_hw_idr_uobject(struct ib_uobject *uobj,
 	 */
 	if (ib_is_destroy_retryable(ret, why, uobj))
 		return ret;
-
+skip:
 	if (why == RDMA_REMOVE_ABORT)
 		return 0;
 
