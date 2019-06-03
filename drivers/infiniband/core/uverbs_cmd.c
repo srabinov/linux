@@ -43,6 +43,7 @@
 
 #include <rdma/uverbs_types.h>
 #include <rdma/uverbs_std_types.h>
+#include <rdma/uverbs_ioctl.h>
 #include "rdma_core.h"
 
 #include "uverbs.h"
@@ -3789,6 +3790,78 @@ static void uverbs_init_attrs_ufile(struct uverbs_attr_bundle *attrs_bundle,
 		.ufile = ufile,
 		.context = ufile->ucontext,
 	};
+}
+
+/* ib_uverbs_import_lock - Function which gathers code that is
+ *	common in the import verbs.
+ *
+ *	This function guarntee that both source and destination files are
+ *	protected from race with vfs close. The current file is protected
+ *	from such race because verb is executed in a system-call context.
+ *	The other file is protected by 'fget'. This function also ensures
+ *	that ib_uobject identified by the type & handle is locked for read.
+ *
+ *	Callers of this helper must also call ib_uverbs_import_unlock
+ *	to undo any locking performed by this helper.
+ */
+static int ib_uverbs_import_lock(struct uverbs_attr_bundle *attrs,
+				 int fd, u16 type, u32 handle,
+				 struct ib_uobject **uobj,
+				 struct file **filep,
+				 struct ib_uverbs_file **ufile)
+{
+	struct ib_uverbs_file *file = attrs->ufile;
+	struct ib_uverbs_device *dev = file->device;
+	struct uverbs_attr_bundle fd_attrs;
+	struct ib_uverbs_device *fd_dev;
+	int ret = 0;
+
+	*filep = fget(fd);
+	if (!*filep)
+		return -EINVAL;
+
+	/* check uverbs ops exist */
+	if ((*filep)->f_op != file->filp->f_op) {
+		ret = -EINVAL;
+		goto file;
+	}
+
+	*ufile = (*filep)->private_data;
+	fd_dev = (*ufile)->device;
+
+	/* check that both files belong to same ib_device */
+	if (dev != fd_dev) {
+		ret = -EINVAL;
+		goto file;
+	}
+
+	uverbs_init_attrs_ufile(&fd_attrs, *ufile);
+
+	*uobj = uobj_get_read(type, handle, &fd_attrs);
+	if (IS_ERR(*uobj)) {
+		ret = -EINVAL;
+		goto file;
+	}
+
+	/* verify ib_object is shareable */
+	if (!(*uobj)->refcnt) {
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	return 0;
+uobj:
+	uobj_put_read(*uobj);
+file:
+	fput(*filep);
+	return ret;
+}
+
+static void ib_uverbs_import_unlock(struct ib_uobject *uobj,
+				    struct file *filep)
+{
+	uobj_put_read(uobj);
+	fput(filep);
 }
 
 /*
