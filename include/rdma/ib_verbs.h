@@ -2329,6 +2329,18 @@ struct iw_cm_conn_param;
 
 #define DECLARE_RDMA_OBJ_SIZE(ib_struct) size_t size_##ib_struct
 
+/*
+ * Prototype for IB HW object clone callback
+ *
+ * Define prototype for clone callback. The clone callback is used
+ * by the driver layer to supply the uverbs a way to clone IB HW
+ * object driver data to rdma-core user space provider. The clone
+ * callback is used when new IB HW object is created and every time
+ * it is imported to some ib_ucontext.
+ */
+#define clone_callback(ib_type)		\
+	int (*clone_##ib_type)(struct ib_udata *udata, struct ib_type *obj)
+
 /**
  * struct ib_device_ops - InfiniBand device operations
  * This structure defines all the InfiniBand device operations, providers will
@@ -2607,6 +2619,13 @@ struct ib_device_ops {
 	DECLARE_RDMA_OBJ_SIZE(ib_srq);
 	DECLARE_RDMA_OBJ_SIZE(ib_ucontext);
 };
+
+/* Implementation of trivial clone callback */
+#define trivial_clone_callback(ib_type)		\
+	static inline int trivial_clone_##ib_type(struct ib_udata *udata, struct ib_type *obj) \
+	{ \
+		return 0; \
+	}
 
 struct ib_core_device {
 	/* device must be the first element in structure until,
