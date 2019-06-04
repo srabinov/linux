@@ -104,6 +104,18 @@ static inline
 void ibdev_dbg(const struct ib_device *ibdev, const char *format, ...) {}
 #endif
 
+/*
+ * Prototype for IB HW object clone callback
+ *
+ * Define prototype for clone callback. The clone callback will be
+ * part of any shareable IB HW object (ib_pd, ib_mr,...) and is used
+ * by the driver layer to supply the uverbs a way to clone IB HW
+ * object driver data to rdma-core user space provider. The clone
+ * callback is used when new IB HW object is created and every time
+ * it is imported to some ib_ucontext.
+ */
+#define clone_type(_type) int(*clone)(struct _type *obj, struct ib_udata *udata)
+
 union ib_gid {
 	u8	raw[16];
 	struct {
