@@ -104,6 +104,12 @@ static inline
 void ibdev_dbg(const struct ib_device *ibdev, const char *format, ...) {}
 #endif
 
+/*
+ * Add the 'clone' call back to every ib_x object that is share able.
+ * Only ib_x object with valid 'clone' pointer is share able for the given hw.
+ */
+#define clone_type(_type) int(*clone)(struct _type *obj, struct ib_udata *udata)
+
 union ib_gid {
 	u8	raw[16];
 	struct {
