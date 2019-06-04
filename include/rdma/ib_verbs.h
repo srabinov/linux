@@ -1603,6 +1603,9 @@ struct ib_pd {
 	 */
 	struct ib_mr	       *__internal_mr;
 	struct rdma_restrack_entry res;
+
+	/* pd clone call back */
+	clone_type(ib_pd);
 };
 
 struct ib_xrcd {
