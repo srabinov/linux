@@ -1177,6 +1177,13 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	}
 }
 
+static int mlx4_ib_clone_pd(struct ib_udata *udata, struct ib_pd *ibpd)
+{
+	struct mlx4_ib_pd *pd = to_mpd(ibpd);
+
+	return udata ? ib_copy_to_udata(udata, &pd->pdn, sizeof(__u32)) : 0;
+}
+
 static int mlx4_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct mlx4_ib_pd *pd = to_mpd(ibpd);
@@ -1187,10 +1194,12 @@ static int mlx4_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	if (err)
 		return err;
 
-	if (udata && ib_copy_to_udata(udata, &pd->pdn, sizeof(__u32))) {
+	err = mlx4_ib_clone_pd(udata, ibpd);
+	if (err) {
 		mlx4_pd_free(to_mdev(ibdev)->dev, pd->pdn);
 		return -EFAULT;
 	}
+
 	return 0;
 }
 
@@ -2558,6 +2567,9 @@ static const struct ib_device_ops mlx4_ib_dev_ops = {
 	.req_notify_cq = mlx4_ib_arm_cq,
 	.rereg_user_mr = mlx4_ib_rereg_user_mr,
 	.resize_cq = mlx4_ib_resize_cq,
+
+	/* Object sharing callbacks */
+	.clone_ib_pd = mlx4_ib_clone_pd,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, mlx4_ib_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_pd, mlx4_ib_pd, ibpd),
