@@ -436,12 +436,15 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	pd->__internal_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
 	pd->res.type = RDMA_RESTRACK_PD;
+	/* number of uobj using this ib_pd */
+	atomic_set(&pd->refcnt, 1);
 
 	ret = ib_dev->ops.alloc_pd(pd, &attrs->driver_udata);
 	if (ret)
 		goto err_alloc;
 
 	uobj->object = pd;
+	uobj->refcnt = &pd->refcnt;
 	memset(&resp, 0, sizeof resp);
 	resp.pd_handle = uobj->id;
 	rdma_restrack_uadd(&pd->res);

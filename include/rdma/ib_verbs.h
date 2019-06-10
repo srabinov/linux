@@ -1473,6 +1473,9 @@ struct ib_pd {
 	 */
 	struct ib_mr	       *__internal_mr;
 	struct rdma_restrack_entry res;
+
+	/* number of uobj using this ib_pd */
+	atomic_t	      refcnt;
 };
 
 struct ib_xrcd {
