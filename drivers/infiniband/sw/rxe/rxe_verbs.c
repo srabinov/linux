@@ -176,10 +176,20 @@ static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
 	return 0;
 }
 
+static int rxe_clone_pd(struct ib_pd *ibpd, struct ib_udata *udata)
+{
+	/* rxe does not copy any pdn to the user space */
+	return 0;
+}
+
 static int rxe_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
+
+	/* only user pd can be cloned (shared) */
+	if (!rdma_is_kernel_res(&ibpd->res))
+		ibpd->clone = rxe_clone_pd;
 
 	return rxe_add_to_pool(&rxe->pd_pool, &pd->pelem);
 }
