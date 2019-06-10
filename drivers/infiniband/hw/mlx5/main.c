@@ -2457,11 +2457,24 @@ int mlx5_ib_dealloc_dm(struct ib_dm *ibdm, struct uverbs_attr_bundle *attrs)
 	return 0;
 }
 
+static int mlx5_ib_clone_pd(struct ib_pd *ibpd, struct ib_udata *udata)
+{
+	struct mlx5_ib_pd *pd = to_mpd(ibpd);
+	struct mlx5_ib_alloc_pd_resp resp;
+	int ret = 0;
+
+	if (udata) {
+		resp.pdn = pd->pdn;
+		ret = ib_copy_to_udata(udata, &resp, sizeof(resp));
+	}
+
+	return ret;
+}
+
 static int mlx5_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct mlx5_ib_pd *pd = to_mpd(ibpd);
 	struct ib_device *ibdev = ibpd->device;
-	struct mlx5_ib_alloc_pd_resp resp;
 	int err;
 	u32 out[MLX5_ST_SZ_DW(alloc_pd_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(alloc_pd_in)]   = {};
@@ -2479,13 +2492,16 @@ static int mlx5_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 
 	pd->pdn = MLX5_GET(alloc_pd_out, out, pd);
 	pd->uid = uid;
-	if (udata) {
-		resp.pdn = pd->pdn;
-		if (ib_copy_to_udata(udata, &resp, sizeof(resp))) {
-			mlx5_cmd_dealloc_pd(to_mdev(ibdev)->mdev, pd->pdn, uid);
-			return -EFAULT;
-		}
+
+	err = mlx5_ib_clone_pd(ibpd, udata);
+	if (err) {
+		mlx5_cmd_dealloc_pd(to_mdev(ibdev)->mdev, pd->pdn, uid);
+		return err;
 	}
+
+	/* only user pd can be cloned (shared) */
+	if (!rdma_is_kernel_res(&ibpd->res))
+		ibpd->clone = mlx5_ib_clone_pd;
 
 	return 0;
 }
