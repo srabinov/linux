@@ -176,6 +176,12 @@ static int rxe_port_immutable(struct ib_device *dev, u8 port_num,
 	return 0;
 }
 
+static int rxe_clone_pd(struct ib_udata *udata, struct ib_pd *ibpd)
+{
+	/* rxe does not copy any pdn to the user space */
+	return 0;
+}
+
 static int rxe_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
@@ -1155,6 +1161,9 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.reg_user_mr = rxe_reg_user_mr,
 	.req_notify_cq = rxe_req_notify_cq,
 	.resize_cq = rxe_resize_cq,
+
+	/* Object sharing callbacks */
+	.clone_ib_pd = rxe_clone_pd,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, rxe_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_pd, rxe_pd, ibpd),
