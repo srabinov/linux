@@ -1606,6 +1606,9 @@ struct ib_pd {
 
 	/* pd clone call back */
 	clone_type(ib_pd);
+
+	/* number of uobj using this ib_pd */
+	atomic_t	      share_count;
 };
 
 struct ib_xrcd {

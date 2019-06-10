@@ -424,12 +424,15 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	pd->__internal_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
 	pd->res.type = RDMA_RESTRACK_PD;
+	/* number of uobj using this ib_pd */
+	atomic_set(&pd->share_count, 1);
 
 	ret = ib_dev->ops.alloc_pd(pd, &attrs->driver_udata);
 	if (ret)
 		goto err_alloc;
 
 	uobj->object = pd;
+	uobj->share_count = &pd->share_count;
 	memset(&resp, 0, sizeof resp);
 	resp.pd_handle = uobj->id;
 	rdma_restrack_uadd(&pd->res);
@@ -3774,11 +3777,8 @@ static int ib_uverbs_export_to_fd(struct uverbs_attr_bundle *attrs)
 
 	/* for every share-able object type add case below... */
 	switch (cmd.type) {
-	/* Example:
-	 *
-	 * case UVERBS_OBJECT_PD:
-	 *      break;
-	 */
+	case UVERBS_OBJECT_PD:
+		break;
 	default:
 		/* invalid type! */
 		pr_warn("%s: invalid obj type %d\n", __func__, cmd.type);
