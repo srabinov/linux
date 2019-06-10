@@ -1177,6 +1177,17 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	}
 }
 
+static int mlx4_ib_clone_pd(struct ib_pd *ibpd, struct ib_udata *udata)
+{
+	struct mlx4_ib_pd *pd = to_mpd(ibpd);
+	int ret = 0;
+
+	if (udata)
+		ret = ib_copy_to_udata(udata, &pd->pdn, sizeof(__u32));
+
+	return ret;
+}
+
 static int mlx4_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct mlx4_ib_pd *pd = to_mpd(ibpd);
@@ -1187,10 +1198,16 @@ static int mlx4_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	if (err)
 		return err;
 
-	if (udata && ib_copy_to_udata(udata, &pd->pdn, sizeof(__u32))) {
+	err = mlx4_ib_clone_pd(ibpd, udata);
+	if (err) {
 		mlx4_pd_free(to_mdev(ibdev)->dev, pd->pdn);
-		return -EFAULT;
+		return err;
 	}
+
+	/* only user pd can be cloned (shared) */
+	if (!rdma_is_kernel_res(&ibpd->res))
+		ibpd->clone = mlx4_ib_clone_pd;
+
 	return 0;
 }
 
