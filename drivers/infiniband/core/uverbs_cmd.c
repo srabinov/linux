@@ -3773,6 +3773,24 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 	return ret;
 }
 
+/**
+ * uverbs_init_attrs_ufile - Helper function to create minimal
+ * uverbs_attr_bundle out of ib_uverbs_file that is suitable
+ * for the below operations:
+ *
+ * - uobj_get_[read|write]
+ * - uobj_alloc_commit
+ * - uobj_alloc_abort
+ */
+static void uverbs_init_attrs_ufile(struct uverbs_attr_bundle *attrs_bundle,
+				    struct ib_uverbs_file *ufile)
+{
+	*attrs_bundle = (struct uverbs_attr_bundle) {
+		.ufile = ufile,
+		.context = ufile->ucontext,
+	};
+}
+
 /*
  * Describe the input structs for write(). Some write methods have an input
  * only struct, most have an input and output. If the struct has an output then
