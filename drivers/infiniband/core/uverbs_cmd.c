@@ -3934,6 +3934,71 @@ uobj:
 	return ret;
 }
 
+static int ib_uverbs_import_pd(struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uverbs_import_from_fd	cmd;
+	struct ib_uobject *src_uobj = NULL;
+	struct ib_uobject *dst_uobj = NULL;
+	struct ib_uverbs_file *src_file;
+	struct ib_device *ibdev;
+	struct file *filep;
+	struct ib_pd *ibpd;
+	int ret;
+
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
+
+	ret = ib_uverbs_export_import_lock(attrs, cmd.fd, UVERBS_OBJECT_PD,
+					   cmd.handle, DIR_IMPORT, &src_uobj,
+					   &filep, &src_file);
+	if (ret)
+		return ret;
+
+	ibpd = src_uobj->object;
+
+	/* verfiy that object is clone able */
+	if (!ibpd->clone) {
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	/* allocate new uobj from same type on current context */
+	dst_uobj = uobj_alloc(UVERBS_OBJECT_PD, attrs, &ibdev);
+	if (IS_ERR(dst_uobj)) {
+		ret = -ENOMEM;
+		goto uobj;
+	}
+
+	dst_uobj->object = src_uobj->object;
+	dst_uobj->refcnt = src_uobj->refcnt;
+
+	if (WARN_ON(!atomic_inc_not_zero(src_uobj->refcnt))) {
+		/* use after free! */
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	ret = ibpd->clone(ibpd, &attrs->driver_udata);
+	if (!ret)
+		goto uobj;
+
+	ret = uobj_alloc_commit(dst_uobj, attrs);
+
+	/* only release the src file after we commit the dst_uobj */
+	ib_uverbs_export_import_unlock(src_uobj, filep);
+
+	return ret;
+
+uobj:
+	ib_uverbs_export_import_unlock(src_uobj, filep);
+
+	if (!IS_ERR_OR_NULL(dst_uobj))
+		uobj_alloc_abort(dst_uobj, attrs);
+
+	return ret;
+}
+
 /*
  * Describe the input structs for write(). Some write methods have an input
  * only struct, most have an input and output. If the struct has an output then
@@ -4147,7 +4212,13 @@ const struct uapi_definition uverbs_def_write_intf[] = {
 			IB_USER_VERBS_CMD_DEALLOC_PD,
 			ib_uverbs_dealloc_pd,
 			UAPI_DEF_WRITE_I(struct ib_uverbs_dealloc_pd),
-			UAPI_DEF_METHOD_NEEDS_FN(dealloc_pd))),
+			UAPI_DEF_METHOD_NEEDS_FN(dealloc_pd)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_IMPORT_PD,
+			ib_uverbs_import_pd,
+			UAPI_DEF_WRITE_UDATA_IO(struct ib_uverbs_import_from_fd,
+						struct ib_uverbs_alloc_pd_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(alloc_pd))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_QP,
