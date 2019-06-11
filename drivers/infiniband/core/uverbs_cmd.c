@@ -465,6 +465,118 @@ static int ib_uverbs_dealloc_pd(struct uverbs_attr_bundle *attrs)
 	return uobj_perform_destroy(UVERBS_OBJECT_PD, cmd.pd_handle, attrs);
 }
 
+static int ib_uverbs_import_pd(struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uverbs_import_from_fd	cmd;
+
+	struct uverbs_attr_bundle src_attrs;
+	struct ib_uverbs_file *src_file;
+	struct ib_uverbs_device *src_dev;
+
+	struct ib_uverbs_file *dst_file = attrs->ufile;
+
+	struct ib_uobject *src_uobj = NULL;
+	struct ib_uobject *dst_uobj = NULL;
+
+	struct file *filep;
+	struct ib_pd *ibpd;
+	struct ib_device *ibdev;
+	int ret;
+
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
+
+	filep = fget(cmd.fd);
+	if (!filep)
+		return -EINVAL;
+
+	/* check uverbs ops exist */
+	if (filep->f_op != dst_file->filp->f_op) {
+		ret = -EINVAL;
+		goto file;
+	}
+
+	src_file = filep->private_data;
+	src_dev = src_file->device;
+
+	/* check that files point to same device */
+	if (src_file->device != dst_file->device) {
+		ret = -EINVAL;
+		goto file;
+	}
+
+	mutex_lock(&src_dev->lists_mutex);
+
+	/* minimal source attrs */
+	uverbs_attr_ufile(&src_attrs, src_file);
+
+	/* grab source object for read */
+	src_uobj = uobj_get_read(UVERBS_OBJECT_PD, cmd.handle, &src_attrs);
+	if (IS_ERR(src_uobj)) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	/* verify the source object type is valid */
+	if (src_uobj->uapi_object->id != UVERBS_OBJECT_PD) {
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	/* verfiy that object is share able */
+	if (!src_uobj->share_count) {
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	ibpd = src_uobj->object;
+
+	/* verfiy that object is clone able */
+	if (!ibpd->clone) {
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	/* allocate new uobj from same type on current context */
+	dst_uobj = uobj_alloc(UVERBS_OBJECT_PD, attrs, &ibdev);
+	if (IS_ERR(dst_uobj)) {
+		ret = -ENOMEM;
+		goto uobj;
+	}
+
+	dst_uobj->object = src_uobj->object;
+	dst_uobj->share_count = src_uobj->share_count;
+
+	if (WARN_ON(!atomic_inc_not_zero(src_uobj->share_count))) {
+		/* use after free! */
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	ret = ibpd->clone(ibpd, &attrs->driver_udata);
+	if (!ret)
+		goto uobj;
+
+	uobj_put_read(src_uobj);
+
+	fput(filep);
+
+	mutex_unlock(&src_dev->lists_mutex);
+
+	return uobj_alloc_commit(dst_uobj, attrs);
+
+uobj:
+	if (dst_uobj)
+		uobj_alloc_abort(dst_uobj, attrs);
+	uobj_put_read(src_uobj);
+unlock:
+	mutex_unlock(&src_dev->lists_mutex);
+file:
+	fput(filep);
+	return ret;
+}
+
 struct xrcd_table_entry {
 	struct rb_node  node;
 	struct ib_xrcd *xrcd;
@@ -4088,7 +4200,13 @@ const struct uapi_definition uverbs_def_write_intf[] = {
 			IB_USER_VERBS_CMD_DEALLOC_PD,
 			ib_uverbs_dealloc_pd,
 			UAPI_DEF_WRITE_I(struct ib_uverbs_dealloc_pd),
-			UAPI_DEF_METHOD_NEEDS_FN(dealloc_pd))),
+			UAPI_DEF_METHOD_NEEDS_FN(dealloc_pd)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_IMPORT_PD,
+			ib_uverbs_import_pd,
+			UAPI_DEF_WRITE_UDATA_IO(struct ib_uverbs_import_from_fd,
+						struct ib_uverbs_alloc_pd_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(alloc_pd))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_QP,
