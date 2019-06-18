@@ -6315,6 +6315,7 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 
 	/* Object sharing callbacks */
 	.clone_ib_pd = mlx5_ib_clone_pd,
+	.clone_ib_mr = trivial_clone_ib_mr,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, mlx5_ib_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, mlx5_ib_cq, ibcq),
