@@ -2618,6 +2618,7 @@ struct ib_device_ops {
 
 	/* Object sharing callbacks */
 	clone_callback(ib_pd);
+	clone_callback(ib_mr);
 
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_pd);
@@ -2634,6 +2635,7 @@ struct ib_device_ops {
 
 /* Shared IB HW object support */
 trivial_clone_callback(ib_pd);
+trivial_clone_callback(ib_mr);
 
 struct ib_core_device {
 	/* device must be the first element in structure until,
