@@ -1733,7 +1733,6 @@ struct ib_mr {
 	enum ib_mr_type	   type;
 	bool		   need_inval;
 	union {
-		struct ib_uobject	*uobject;	/* user */
 		struct list_head	qp_entry;	/* FR */
 	};
 
@@ -2540,6 +2539,7 @@ struct ib_device_ops {
 
 	/* Object sharing callbacks */
 	clone_callback(ib_pd);
+	clone_callback(ib_mr);
 
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_cq);
@@ -2558,6 +2558,7 @@ static inline int trivial_clone_##ib_type(struct ib_udata *udata,	\
 
 /* Shared IB HW object support */
 trivial_clone_callback(ib_pd);
+trivial_clone_callback(ib_mr);
 
 struct ib_core_device {
 	/* device must be the first element in structure until,
