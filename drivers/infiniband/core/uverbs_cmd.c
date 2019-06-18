@@ -4011,6 +4011,7 @@ uobj:									\
 
 /* IB HW objects import verbs */
 ib_uverbs_import(ib_pd, UVERBS_OBJECT_PD);
+ib_uverbs_import(ib_mr, UVERBS_OBJECT_MR);
 
 /*
  * Describe the input structs for write(). Some write methods have an input
@@ -4198,6 +4199,12 @@ const struct uapi_definition uverbs_def_write_intf[] = {
 			UAPI_DEF_WRITE_UDATA_IO(struct ib_uverbs_rereg_mr,
 						struct ib_uverbs_rereg_mr_resp),
 			UAPI_DEF_METHOD_NEEDS_FN(rereg_user_mr))),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_IMPORT_PD,
+			ib_uverbs_import_ib_mr,
+			UAPI_DEF_WRITE_UDATA_IO(struct ib_uverbs_import_from_fd,
+						struct ib_uverbs_alloc_pd_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(reg_user_mr)),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_MW,
