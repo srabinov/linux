@@ -4014,6 +4014,7 @@ uobj:									\
 
 /* IB HW objects import verbs */
 ib_uverbs_import(ib_pd, UVERBS_OBJECT_PD);
+ib_uverbs_import(ib_mr, UVERBS_OBJECT_MR);
 
 static int ib_uverbs_import_fr_fd(struct uverbs_attr_bundle *attrs)
 {
@@ -4027,6 +4028,8 @@ static int ib_uverbs_import_fr_fd(struct uverbs_attr_bundle *attrs)
 	switch (cmd.type) {
 	case UVERBS_OBJECT_PD:
 		return ib_uverbs_import_ib_pd(attrs);
+	case UVERBS_OBJECT_MR:
+		return ib_uverbs_import_ib_mr(attrs);
 	}
 
 	return -EINVAL;
