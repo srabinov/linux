@@ -3774,6 +3774,7 @@ static void uverbs_init_attrs_ufile(struct uverbs_attr_bundle *attrs_bundle,
 		.ufile = ufile,
 		.context = ufile->ucontext,
 	};
+}
 
 enum obj_shr_direction {
 	OBJ_SHR_DIR_EXPORT,
@@ -3959,6 +3960,97 @@ uobj:
 	return ret;
 }
 
+static void ib_uverbs_clone_ib_pd(union ib_uverbs_import_fr_fd_resp *resp,
+			          struct ib_pd *pd,
+			          __u32 handle)
+{
+	resp->alloc_pd.pd_handle = handle;
+}
+
+static int ib_uverbs_import_ib_pd(struct uverbs_attr_bundle *attrs)
+{
+	union ib_uverbs_import_fr_fd_resp resp = {0};
+	struct ib_uobject *src_uobj = NULL;
+	struct ib_uobject *dst_uobj = NULL;
+	struct ib_uverbs_import_fr_fd cmd;
+	struct ib_uverbs_file *src_file;
+	struct ib_device *ibdev;
+	struct ib_pd *pd;
+	struct file *filep;
+	int ret;
+
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
+
+	ret = ib_uverbs_export_import_lock(attrs, cmd.fd, UVERBS_OBJECT_PD,
+					   cmd.handle, OBJ_SHR_DIR_IMPORT,
+					   &src_uobj, &filep,
+					   &src_file);
+	if (ret)
+		return ret;
+
+	pd = src_uobj->object;
+
+	dst_uobj = uobj_alloc(UVERBS_OBJECT_PD, attrs, &ibdev);
+	if (IS_ERR(dst_uobj)) {
+		ret = -ENOMEM;
+		goto uobj;
+	}
+
+	if (!ibdev->ops.clone_ib_pd) {
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	dst_uobj->object = src_uobj->object;
+	dst_uobj->refcnt = src_uobj->refcnt;
+
+	if (WARN_ON(!atomic_inc_not_zero(src_uobj->refcnt))) {
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	ret = ibdev->ops.clone_ib_pd(&attrs->driver_udata, pd);
+	if (!ret)
+		goto uobj;
+
+	ib_uverbs_clone_ib_pd(&resp, src_uobj->object, src_uobj->id);
+
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret)
+		goto uobj;
+
+	ret = uobj_alloc_commit(dst_uobj, attrs);
+
+	ib_uverbs_export_import_unlock(src_uobj, filep);
+
+	return ret;
+
+uobj:
+	if (!IS_ERR_OR_NULL(dst_uobj))
+		uobj_alloc_abort(dst_uobj, attrs);
+
+	return ret;
+}
+
+static int ib_uverbs_import_fr_fd(struct uverbs_attr_bundle *attrs)
+{
+	struct ib_uverbs_import_fr_fd cmd;
+	int ret;
+
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
+
+	switch (cmd.type) {
+	case UVERBS_OBJECT_PD:
+		return ib_uverbs_import_ib_pd(attrs);
+	}
+
+	return -EINVAL;
+}
+
 /*
  * Describe the input structs for write(). Some write methods have an input
  * only struct, most have an input and output. If the struct has an output then
@@ -4099,6 +4191,11 @@ const struct uapi_definition uverbs_def_write_intf[] = {
 			ib_uverbs_export_to_fd,
 			UAPI_DEF_WRITE_IO(struct ib_uverbs_export_to_fd,
 					  struct ib_uverbs_export_to_fd_resp)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_IMPORT_FR_FD,
+			ib_uverbs_import_fr_fd,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_import_fr_fd,
+					  union  ib_uverbs_import_fr_fd_resp)),
 		DECLARE_UVERBS_WRITE_EX(
 			IB_USER_VERBS_EX_CMD_QUERY_DEVICE,
 			ib_uverbs_ex_query_device,
