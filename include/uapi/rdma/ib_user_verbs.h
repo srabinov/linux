@@ -1311,6 +1311,7 @@ struct ib_uverbs_import_fr_fd {
 
 union ib_uverbs_import_fr_fd_resp {
 	struct ib_uverbs_alloc_pd_resp alloc_pd;
+	struct ib_uverbs_reg_mr_resp reg_mr;
 };
 
 #define IB_DEVICE_NAME_MAX 64
