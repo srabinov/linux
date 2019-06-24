@@ -88,6 +88,7 @@ enum ib_uverbs_write_cmds {
 	IB_USER_VERBS_CMD_CLOSE_XRCD,
 	IB_USER_VERBS_CMD_CREATE_XSRQ,
 	IB_USER_VERBS_CMD_OPEN_QP,
+	IB_USER_VERBS_CMD_IMPORT_FR_FD,
 };
 
 enum {
@@ -1297,6 +1298,19 @@ struct ib_uverbs_ex_modify_cq {
 	__u32 attr_mask;
 	struct ib_uverbs_cq_moderation attr;
 	__u32 reserved;
+};
+
+/* object sharing support */
+struct ib_uverbs_import_fr_fd {
+	__u64 response;
+	__u32 fd;
+	__u32 handle;
+	__u16 type;
+	__u8  reserved[6];
+};
+
+union ib_uverbs_import_fr_fd_resp {
+	struct ib_uverbs_alloc_pd_resp alloc_pd;
 };
 
 #define IB_DEVICE_NAME_MAX 64
