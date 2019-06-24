@@ -768,8 +768,10 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs)
 	atomic_inc(&pd->usecnt);
 	mr->res.type = RDMA_RESTRACK_MR;
 	rdma_restrack_uadd(&mr->res);
+	atomic_set(&mr->refcnt, 1);
 
 	uobj->object = mr;
+	uobj->refcnt = &mr->refcnt;
 
 	memset(&resp, 0, sizeof resp);
 	resp.lkey      = mr->lkey;

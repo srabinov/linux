@@ -1742,6 +1742,9 @@ struct ib_mr {
 	 * Implementation details of the RDMA core, don't use in drivers:
 	 */
 	struct rdma_restrack_entry res;
+
+	/* number of uobj using this ib_pd */
+	atomic_t	      refcnt;
 };
 
 struct ib_mw {
