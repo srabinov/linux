@@ -2617,6 +2617,9 @@ struct ib_device_ops {
 	int (*iw_create_listen)(struct iw_cm_id *cm_id, int backlog);
 	int (*iw_destroy_listen)(struct iw_cm_id *cm_id);
 
+	/* Object sharing callbacks */
+	clone_callback(ib_pd);
+
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_pd);
 	DECLARE_RDMA_OBJ_SIZE(ib_srq);
@@ -2629,6 +2632,9 @@ struct ib_device_ops {
 	{ \
 		return 0; \
 	}
+
+/* Shared IB HW object support */
+trivial_clone_callback(ib_pd);
 
 struct ib_core_device {
 	/* device must be the first element in structure until,
