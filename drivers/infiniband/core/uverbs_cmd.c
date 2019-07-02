@@ -3879,7 +3879,7 @@ static int ib_uverbs_export_to_fd(struct uverbs_attr_bundle *attrs)
 	struct ib_uobject *dst_uobj = NULL;
 	struct ib_uverbs_export_to_fd cmd;
 	struct ib_uverbs_file *dst_file;
-	struct ib_device *ib_dev;
+	struct ib_device *ib_dev = NULL;
 	struct file *filep;
 	int ret;
 
@@ -3898,7 +3898,7 @@ static int ib_uverbs_export_to_fd(struct uverbs_attr_bundle *attrs)
 
 	/* allocate new uobj from same type on dst file */
 	dst_uobj = uobj_alloc(cmd.type, &dst_attrs, &ib_dev);
-	if (IS_ERR(dst_uobj)) {
+	if (IS_ERR(dst_uobj) || !ib_dev) {
 		ret = -ENOMEM;
 		goto uobj;
 	}
