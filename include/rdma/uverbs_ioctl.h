@@ -665,24 +665,6 @@ static inline bool uverbs_attr_is_valid(const struct uverbs_attr_bundle *attrs_b
 }
 
 /**
- * uverbs_init_attrs_ufile - Helper function to create minimal
- * uverbs_attr_bundle out of ib_uverbs_file that is suitable
- * for the below operations:
- *
- * - uobj_get_[read|write]
- * - uobj_alloc_commit
- * - uobj_alloc_abort
- */
-static inline
-void uverbs_init_attrs_ufile(struct uverbs_attr_bundle *attrs_bundle,
-			     struct ib_uverbs_file *ufile)
-{
-	*attrs_bundle = (struct uverbs_attr_bundle) {
-		.ufile = ufile,
-	};
-}
-
-/**
  * rdma_udata_to_drv_context - Helper macro to get the driver's context out of
  *                             ib_udata which is embedded in uverbs_attr_bundle.
  *
