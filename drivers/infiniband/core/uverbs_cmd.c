@@ -3968,72 +3968,161 @@ uobj:
 	return ret;
 }
 
-#define ib_uverbs_import(ib_type, type_id)                              \
-static int ib_uverbs_import_##ib_type(struct uverbs_attr_bundle *attrs) \
-{									\
-	struct ib_uobject *src_uobj = NULL;				\
-	struct ib_uobject *dst_uobj = NULL;				\
-	struct ib_uverbs_import_fr_fd cmd;				\
-	struct ib_uverbs_file *src_file;				\
-	struct ib_device *ibdev;					\
-	struct ib_type *ib_type;					\
-	struct file *filep;						\
-	int ret;							\
-									\
-	ret = uverbs_request(attrs, &cmd, sizeof(cmd));			\
-	if (ret)							\
-		return ret;						\
-									\
-	ret = ib_uverbs_export_import_lock(attrs, cmd.fd, type_id,	\
-					   cmd.handle, OBJ_SHR_DIR_IMPORT, \
-					   &src_uobj, &filep,		\
-					   &src_file);			\
-	if (ret)							\
-		return ret;						\
-									\
-	ib_type = src_uobj->object;					\
-									\
-	dst_uobj = uobj_alloc(type_id, attrs, &ibdev);			\
-	if (IS_ERR(dst_uobj)) {						\
-		ret = -ENOMEM;						\
-		goto uobj;						\
-	}								\
-									\
-	if (!ibdev->ops.clone_##ib_type) {				\
-		ret = -EINVAL;						\
-		goto uobj;						\
-	}								\
-									\
-	dst_uobj->object = src_uobj->object;				\
-	dst_uobj->refcnt = src_uobj->refcnt;				\
-									\
-	if (WARN_ON(!atomic_inc_not_zero(src_uobj->refcnt))) {		\
-		ret = -EINVAL;						\
-		goto uobj;						\
-	}								\
-									\
-	ret = ibdev->ops.clone_##ib_type(&attrs->driver_udata, ib_type);\
-	if (!ret)							\
-		goto uobj;						\
-									\
-	ret = uobj_alloc_commit(dst_uobj, attrs);			\
-									\
-	ib_uverbs_export_import_unlock(src_uobj, filep);		\
-									\
-	return ret;							\
-									\
-uobj:									\
-	ib_uverbs_export_import_unlock(src_uobj, filep);		\
-									\
-	if (!IS_ERR_OR_NULL(dst_uobj))					\
-		uobj_alloc_abort(dst_uobj, attrs);			\
-									\
-	return ret;							\
+static void ib_uverbs_clone_ib_pd(union ib_uverbs_import_fr_fd_resp *resp,
+			          struct ib_pd *pd,
+			          __u32 handle)
+{
+	resp->alloc_pd.pd_handle = handle;
 }
 
-/* IB HW objects import verbs */
-ib_uverbs_import(ib_pd, UVERBS_OBJECT_PD);
-ib_uverbs_import(ib_mr, UVERBS_OBJECT_MR);
+static void ib_uverbs_clone_ib_mr(union ib_uverbs_import_fr_fd_resp *resp,
+			          struct ib_mr *mr,
+			          __u32 handle)
+{
+	resp->reg_mr.lkey = mr->lkey;
+	resp->reg_mr.rkey = mr->rkey;
+	resp->reg_mr.mr_handle = handle;
+}
+
+static int ib_uverbs_import_ib_pd(struct uverbs_attr_bundle *attrs)
+{
+	union ib_uverbs_import_fr_fd_resp resp = {0};
+	struct ib_uobject *src_uobj = NULL;
+	struct ib_uobject *dst_uobj = NULL;
+	struct ib_uverbs_import_fr_fd cmd;
+	struct ib_uverbs_file *src_file;
+	struct ib_device *ibdev;
+	struct ib_pd *pd;
+	struct file *filep;
+	int ret;
+
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
+
+	ret = ib_uverbs_export_import_lock(attrs, cmd.fd, UVERBS_OBJECT_PD,
+					   cmd.handle, OBJ_SHR_DIR_IMPORT,
+					   &src_uobj, &filep,
+					   &src_file);
+	if (ret)
+		return ret;
+
+	pd = src_uobj->object;
+
+	dst_uobj = uobj_alloc(UVERBS_OBJECT_PD, attrs, &ibdev);
+	if (IS_ERR(dst_uobj)) {
+		ret = -ENOMEM;
+		goto uobj;
+	}
+
+	if (!ibdev->ops.clone_ib_pd) {
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	dst_uobj->object = src_uobj->object;
+	dst_uobj->refcnt = src_uobj->refcnt;
+
+	if (WARN_ON(!atomic_inc_not_zero(src_uobj->refcnt))) {
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	ret = ibdev->ops.clone_ib_pd(&attrs->driver_udata, pd);
+	if (!ret)
+		goto uobj;
+
+	ib_uverbs_clone_ib_pd(&resp, src_uobj->object, src_uobj->id);
+
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret)
+		goto uobj;
+
+	ret = uobj_alloc_commit(dst_uobj, attrs);
+
+	ib_uverbs_export_import_unlock(src_uobj, filep);
+
+	return ret;
+
+uobj:
+	ib_uverbs_export_import_unlock(src_uobj, filep);
+
+	if (!IS_ERR_OR_NULL(dst_uobj))
+		uobj_alloc_abort(dst_uobj, attrs);
+
+	return ret;
+}
+
+static int ib_uverbs_import_ib_mr(struct uverbs_attr_bundle *attrs)
+{
+	union ib_uverbs_import_fr_fd_resp resp = {0};
+	struct ib_uobject *src_uobj = NULL;
+	struct ib_uobject *dst_uobj = NULL;
+	struct ib_uverbs_import_fr_fd cmd;
+	struct ib_uverbs_file *src_file;
+	struct ib_device *ibdev;
+	struct ib_mr *mr;
+	struct file *filep;
+	int ret;
+
+	return -EINVAL;
+
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
+
+	ret = ib_uverbs_export_import_lock(attrs, cmd.fd, UVERBS_OBJECT_MR,
+					   cmd.handle, OBJ_SHR_DIR_IMPORT,
+					   &src_uobj, &filep,
+					   &src_file);
+	if (ret)
+		return ret;
+
+	mr = src_uobj->object;
+
+	dst_uobj = uobj_alloc(UVERBS_OBJECT_MR, attrs, &ibdev);
+	if (IS_ERR(dst_uobj)) {
+		ret = -ENOMEM;
+		goto uobj;
+	}
+
+	if (!ibdev->ops.clone_ib_mr) {
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	dst_uobj->object = src_uobj->object;
+	dst_uobj->refcnt = src_uobj->refcnt;
+
+	if (WARN_ON(!atomic_inc_not_zero(src_uobj->refcnt))) {
+		ret = -EINVAL;
+		goto uobj;
+	}
+
+	ret = ibdev->ops.clone_ib_mr(&attrs->driver_udata, mr);
+	if (!ret)
+		goto uobj;
+
+	ib_uverbs_clone_ib_mr(&resp, src_uobj->object, src_uobj->id);
+
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret)
+		goto uobj;
+
+	ret = uobj_alloc_commit(dst_uobj, attrs);
+
+	ib_uverbs_export_import_unlock(src_uobj, filep);
+
+	return ret;
+
+uobj:
+	ib_uverbs_export_import_unlock(src_uobj, filep);
+
+	if (!IS_ERR_OR_NULL(dst_uobj))
+		uobj_alloc_abort(dst_uobj, attrs);
+
+	return ret;
+}
 
 static int ib_uverbs_import_fr_fd(struct uverbs_attr_bundle *attrs)
 {
