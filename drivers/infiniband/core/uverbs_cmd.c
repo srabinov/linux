@@ -442,6 +442,8 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	if (ret)
 		goto err_copy;
 
+	pr_err("%s(%d) object %p refcnt %d\n", __func__, __LINE__, uobj->object, atomic_read(uobj->refcnt));
+
 	return uobj_alloc_commit(uobj, attrs);
 
 err_copy:
@@ -770,6 +772,8 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs)
 		goto err_copy;
 
 	uobj_put_read(pduobj);
+
+	pr_err("%s(%d) object %p refcnt %d\n", __func__, __LINE__, uobj->object, atomic_read(uobj->refcnt));
 
 	return uobj_alloc_commit(uobj, attrs);
 
@@ -3893,6 +3897,8 @@ static int ib_uverbs_export_to_fd(struct uverbs_attr_bundle *attrs)
 	if (ret)
 		return ret;
 
+	pr_err("%s(%d) src-object %p src-refcnt %d src-id %d src-ufile %p\n", __func__, __LINE__, src_uobj->object, atomic_read(src_uobj->refcnt), src_uobj->id, src_uobj->ufile);
+
 	/* create minimal attrs for dst file */
 	uverbs_init_attrs_ufile(&dst_attrs, dst_file);
 
@@ -3948,6 +3954,8 @@ static int ib_uverbs_export_to_fd(struct uverbs_attr_bundle *attrs)
 
 	/* only release the dst file after we commit the dst_uobj */
 	ib_uverbs_export_import_unlock(src_uobj, filep);
+
+	pr_err("%s(%d) dst-object %p dst-refcnt %d dst-id %d dst-ufile %p ret %d\n", __func__, __LINE__, dst_uobj->object, atomic_read(dst_uobj->refcnt), dst_uobj->id, dst_uobj->ufile, ret);
 
 	return ret;
 
@@ -4007,6 +4015,8 @@ static int ib_uverbs_import_ib_pd(struct uverbs_attr_bundle *attrs)
 	if (ret)
 		return ret;
 
+	pr_err("%s(%d) src-object %p src-refcnt %d src-id %d src-ufile %p\n", __func__, __LINE__, src_uobj->object, atomic_read(src_uobj->refcnt), src_uobj->id, src_uobj->ufile);
+
 	pd = src_uobj->object;
 
 	dst_uobj = uobj_alloc(UVERBS_OBJECT_PD, attrs, &ibdev);
@@ -4014,11 +4024,13 @@ static int ib_uverbs_import_ib_pd(struct uverbs_attr_bundle *attrs)
 		ret = -ENOMEM;
 		goto uobj;
 	}
+	pr_err("%s(%d)\n", __func__, __LINE__);
 
 	if (!ibdev->ops.clone_ib_pd) {
 		ret = -EINVAL;
 		goto uobj;
 	}
+	pr_err("%s(%d)\n", __func__, __LINE__);
 
 	dst_uobj->object = src_uobj->object;
 	dst_uobj->refcnt = src_uobj->refcnt;
@@ -4027,20 +4039,25 @@ static int ib_uverbs_import_ib_pd(struct uverbs_attr_bundle *attrs)
 		ret = -EINVAL;
 		goto uobj;
 	}
+	pr_err("%s(%d)\n", __func__, __LINE__);
 
 	ret = ibdev->ops.clone_ib_pd(&attrs->driver_udata, pd);
-	if (!ret)
+	if (ret)
 		goto uobj;
 
-	ib_uverbs_clone_ib_pd(&resp, src_uobj->object, src_uobj->id);
+	pr_err("%s(%d)\n", __func__, __LINE__);
+	ib_uverbs_clone_ib_pd(&resp, dst_uobj->object, dst_uobj->id);
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
 		goto uobj;
 
+	pr_err("%s(%d)\n", __func__, __LINE__);
 	ret = uobj_alloc_commit(dst_uobj, attrs);
 
 	ib_uverbs_export_import_unlock(src_uobj, filep);
+
+	pr_err("%s(%d) dst-object %p dst-refcnt %d dst-id %d dst-ufile %p ret %d\n", __func__, __LINE__, dst_uobj->object, atomic_read(dst_uobj->refcnt), dst_uobj->id, dst_uobj->ufile, ret);
 
 	return ret;
 
@@ -4065,8 +4082,6 @@ static int ib_uverbs_import_ib_mr(struct uverbs_attr_bundle *attrs)
 	struct file *filep;
 	int ret;
 
-	return -EINVAL;
-
 	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
 		return ret;
@@ -4077,6 +4092,8 @@ static int ib_uverbs_import_ib_mr(struct uverbs_attr_bundle *attrs)
 					   &src_file);
 	if (ret)
 		return ret;
+
+	pr_err("%s(%d) src-object %p src-refcnt %d src-id %d src-ufile %p\n", __func__, __LINE__, src_uobj->object, atomic_read(src_uobj->refcnt), src_uobj->id, src_uobj->ufile);
 
 	mr = src_uobj->object;
 
@@ -4100,10 +4117,10 @@ static int ib_uverbs_import_ib_mr(struct uverbs_attr_bundle *attrs)
 	}
 
 	ret = ibdev->ops.clone_ib_mr(&attrs->driver_udata, mr);
-	if (!ret)
+	if (ret)
 		goto uobj;
 
-	ib_uverbs_clone_ib_mr(&resp, src_uobj->object, src_uobj->id);
+	ib_uverbs_clone_ib_mr(&resp, dst_uobj->object, dst_uobj->id);
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
@@ -4112,6 +4129,8 @@ static int ib_uverbs_import_ib_mr(struct uverbs_attr_bundle *attrs)
 	ret = uobj_alloc_commit(dst_uobj, attrs);
 
 	ib_uverbs_export_import_unlock(src_uobj, filep);
+
+	pr_err("%s(%d) dst-object %p dst-refcnt %d dst-id %d dst-ufile %p ret %d\n", __func__, __LINE__, dst_uobj->object, atomic_read(dst_uobj->refcnt), dst_uobj->id, dst_uobj->ufile, ret);
 
 	return ret;
 

@@ -1180,8 +1180,15 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 static int mlx4_ib_clone_pd(struct ib_udata *udata, struct ib_pd *ibpd)
 {
 	struct mlx4_ib_pd *pd = to_mpd(ibpd);
+	int ret;
 
-	return udata ? ib_copy_to_udata(udata, &pd->pdn, sizeof(__u32)) : 0;
+	pr_err("%s(%d) pdn %d udata %p\n", __func__, __LINE__, pd->pdn, udata);
+	if (udata)
+		pr_err("%s(%d) inbuf %p outbuf %p inlen %d outlen %d\n", __func__, __LINE__, udata->inbuf, udata->outbuf, (int)udata->inlen, (int)udata->outlen);
+
+	ret = udata ? ib_copy_to_udata(udata, &pd->pdn, sizeof(__u32)) : 0;
+	pr_err("%s(%d) ret %d\n",__func__, __LINE__, ret);
+	return ret;
 }
 
 static int mlx4_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)

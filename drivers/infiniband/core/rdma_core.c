@@ -517,15 +517,29 @@ static int __must_check destroy_hw_idr_uobject(struct ib_uobject *uobj,
 		container_of(uobj->uapi_object->type_attrs,
 			     struct uverbs_obj_idr_type, type);
 	int ret, count;
+	static DEFINE_MUTEX(lock);
+
+	pr_err("%s(%d) object %p shared %s refcnt %d\n", __func__, __LINE__, uobj->object, uobj->refcnt ? "Y" : "N", uobj->refcnt ? atomic_read(uobj->refcnt) : 0);
+
+	mutex_lock(&lock);
 
 	if (uobj->refcnt) {
 		count = atomic_dec_return(uobj->refcnt);
 		WARN_ON(count < 0); /* use after free! */
-		if (count)
+		if (count) {
+			mutex_unlock(&lock);
 			goto skip;
+		}
 	}
 
 	ret = idr_type->destroy_object(uobj, why, attrs);
+
+	if (ret) {
+		pr_err("%s(%d) ret %d\n",__func__, __LINE__,ret);
+		atomic_inc(uobj->refcnt);
+	}
+
+	mutex_unlock(&lock);
 
 	/*
 	 * We can only fail gracefully if the user requested to destroy the
