@@ -841,6 +841,33 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 	ufile->ucontext = NULL;
 }
 
+static void __uverbs_ufile_refcount(struct ib_uverbs_file *ufile)
+{
+	int wait;
+
+	if (ufile->parent) {
+		pr_debug("%s: release parent ufile. ufile %p parent %p\n",
+			 __func__, ufile, ufile->parent);
+		if (atomic_dec_and_test(&ufile->parent->refcount))
+			complete(&ufile->parent->context_released);
+	}
+
+	if (!atomic_dec_and_test(&ufile->refcount)) {
+wait:
+		wait = wait_for_completion_interruptible_timeout(
+			&ufile->context_released, 3*HZ);
+		if (wait == -ERESTARTSYS) {
+			WARN_ONCE(1,
+			"signal while waiting for context release! ufile %p\n",
+				ufile);
+		} else if (wait == 0) {
+			pr_debug("%s: timeout while waiting for context release! ufile %p\n",
+				 __func__, ufile);
+			goto wait;
+		}
+	}
+}
+
 static int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
 				  enum rdma_remove_reason reason)
 {
@@ -922,6 +949,8 @@ void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
 	ufile->ucontext->cleanup_retryable = false;
 	if (!list_empty(&ufile->uobjects))
 		__uverbs_cleanup_ufile(ufile, reason);
+
+	__uverbs_ufile_refcount(ufile);
 
 	ufile_destroy_ucontext(ufile, reason);
 

@@ -3800,6 +3800,10 @@ static int ib_uverbs_import_lock(struct uverbs_attr_bundle *attrs,
 	struct ib_uverbs_device *fd_dev;
 	int ret = 0;
 
+	/* shared context cannot import */
+	if (atomic_read(&file->refcount) > 1)
+		return -EINVAL;
+
 	*filep = fget(fd);
 	if (!*filep)
 		return -EINVAL;
@@ -3812,6 +3816,18 @@ static int ib_uverbs_import_lock(struct uverbs_attr_bundle *attrs,
 
 	*ufile = (*filep)->private_data;
 	fd_dev = (*ufile)->device;
+
+	if (file->parent) {
+		/* multiple import must use same parent context! */
+		if (file->parent != *ufile) {
+			ret = -EINVAL;
+			goto file;
+		}
+	} else {
+		/* first import must update parent refcount */
+		file->parent = *ufile;
+		atomic_inc(&(*ufile)->refcount);
+	}
 
 	/* check that both files belong to same ib_device */
 	if (dev != fd_dev) {
