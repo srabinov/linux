@@ -1081,6 +1081,10 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 		goto err;
 	}
 
+	/* shared context support */
+	atomic_set(&file->refcount, 1);
+	init_completion(&file->context_released);
+
 	file->device	 = dev;
 	kref_init(&file->ref);
 	mutex_init(&file->ucontext_lock);
