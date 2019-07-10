@@ -603,8 +603,10 @@ int mlx4_ib_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 	ret = mlx4_mr_free(to_mdev(ibmr->device)->dev, &mr->mmr);
 	if (ret)
 		return ret;
+#if 0
 	if (mr->umem)
 		ib_umem_release(mr->umem);
+#endif
 	kfree(mr);
 
 	return 0;
