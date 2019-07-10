@@ -165,6 +165,28 @@ struct ib_uverbs_file {
 	struct xarray		idr;
 
 	struct file	       *filp;
+
+	/* context sharing support */
+
+	/*
+	 * refcount=1 : zero external context depend on this context
+	 * refcount>1 : (refcount-1) external context depend on this context
+	 */
+	atomic_t		refcount;
+
+	/*
+	 * parent =NULL : this context has not imported any objects
+	 * parent!=NULL : this context imported objects from parent context
+	 */
+	struct ib_uverbs_file  *parent;
+
+	/*
+	 * context_released completion is signalled by the last
+	 * user of this context in case of shared context.
+	 * any pre matured release of the context will be delayed
+	 * till the last user of this context is gone.
+	 */
+	struct completion	context_released;
 };
 
 struct ib_uverbs_event {
